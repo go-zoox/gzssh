@@ -12,6 +12,7 @@ func main() {
 	})
 
 	commands.RegistryServer(app)
+	commands.RegistryClient(app)
 
 	app.Run()
 }
