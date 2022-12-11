@@ -129,20 +129,6 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("failed to get stdin pipe: %v", err)
 	}
 
-	wr := make(chan []byte, 10)
-
-	go func() {
-		for {
-			select {
-			case d := <-wr:
-				_, err := stdin.Write(d)
-				if err != nil {
-					fmt.Println(err.Error())
-				}
-			}
-		}
-	}()
-
 	// configure terminal mode
 	modes := ssh.TerminalModes{
 		ssh.ECHO:          0,     // disable echoing
@@ -170,7 +156,12 @@ func (c *Client) Connect() error {
 	// inspired by: https://github.com/inatus/ssh-client-go
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		str, _ := reader.ReadString('\n')
+		str, err := reader.ReadString('\n')
+		fmt.Println("eee:", err)
+		if err == io.EOF {
+			return nil
+		}
+
 		fmt.Fprint(stdin, str)
 	}
 }
