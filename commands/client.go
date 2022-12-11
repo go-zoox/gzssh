@@ -20,7 +20,7 @@ func RegistryClient(app *cli.MultipleProgram) {
 				Usage:   "server host",
 				EnvVars: []string{"HOST"},
 			},
-			&cli.StringFlag{
+			&cli.IntFlag{
 				Name:    "port",
 				Usage:   "server port",
 				Aliases: []string{"p"},

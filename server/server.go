@@ -14,17 +14,19 @@ import (
 	"github.com/go-zoox/logger"
 )
 
-var DefaultOnAuthentication = func(user, pass string) bool {
-	logger.Infof("[user: %s] try to connect ...", user)
+func CreateDefaultOnAuthentication(defaultUser, defaultPass string) func(user, pass string) bool {
+	return func(user, pass string) bool {
+		logger.Infof("[user: %s] try to connect ...", user)
 
-	isOK := user == "zero" && pass == "secret"
-	if !isOK {
-		logger.Infof("[user: %s] failed to authenticate.", user)
-	} else {
-		logger.Infof("[user: %s] succeed to authenticate.", user)
+		isOK := user == defaultUser && pass == defaultPass
+		if !isOK {
+			logger.Infof("[user: %s] failed to authenticate.", user)
+		} else {
+			logger.Infof("[user: %s] succeed to authenticate.", user)
+		}
+
+		return isOK
 	}
-
-	return isOK
 }
 
 type Server struct {
@@ -35,6 +37,9 @@ type Server struct {
 	IdleTimeout time.Duration
 	//
 	OnAuthentication func(user, pass string) bool
+	//
+	User string
+	Pass string
 }
 
 func setWindowSize(f *os.File, w, h int) {
@@ -59,7 +64,7 @@ func (s *Server) Start() error {
 	}
 
 	if s.OnAuthentication == nil {
-		s.OnAuthentication = DefaultOnAuthentication
+		s.OnAuthentication = CreateDefaultOnAuthentication(s.User, s.Pass)
 	}
 
 	ssh.Handle(func(session ssh.Session) {

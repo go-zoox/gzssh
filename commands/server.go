@@ -15,7 +15,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "server host",
 				EnvVars: []string{"HOST"},
 			},
-			&cli.StringFlag{
+			&cli.IntFlag{
 				Name:    "port",
 				Usage:   "server port",
 				Aliases: []string{"p"},
@@ -37,6 +37,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 			s := &server.Server{
 				Host: ctx.String("host"),
 				Port: ctx.Int("port"),
+				User: ctx.String("user"),
+				Pass: ctx.String("pass"),
 				OnAuthentication: func(user, pass string) bool {
 					return ctx.String("user") == user && ctx.String("pass") == pass
 				},
