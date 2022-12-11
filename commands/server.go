@@ -32,6 +32,20 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "server pass",
 				EnvVars: []string{"PASS"},
 			},
+			&cli.BoolFlag{
+				Name:    "run-in-container",
+				Usage:   "should run user session in container",
+				Aliases: []string{},
+				EnvVars: []string{"RUN_IN_CONTAINER"},
+				Value:   false,
+			},
+			&cli.StringFlag{
+				Name:    "container-image",
+				Usage:   "the container image",
+				Aliases: []string{},
+				EnvVars: []string{"CONTAINER_IMAGE"},
+				Value:   "whatwewant/zmicro:v1",
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			s := &server.Server{
@@ -39,9 +53,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Port: ctx.Int("port"),
 				User: ctx.String("user"),
 				Pass: ctx.String("pass"),
-				OnAuthentication: func(user, pass string) bool {
-					return ctx.String("user") == user && ctx.String("pass") == pass
-				},
+				// OnAuthentication: func(user, pass string) bool {
+				// 	return ctx.String("user") == user && ctx.String("pass") == pass
+				// },
+				//
+				IsRunInContainer: ctx.Bool("run-in-container"),
+				ContainerImage:   ctx.String("container-image"),
 			}
 
 			return s.Start()

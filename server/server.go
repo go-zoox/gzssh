@@ -2,14 +2,9 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
-	"syscall"
 	"time"
-	"unsafe"
 
-	"github.com/creack/pty"
 	"github.com/gliderlabs/ssh"
 	"github.com/go-zoox/logger"
 )
@@ -40,15 +35,9 @@ type Server struct {
 	//
 	User string
 	Pass string
-}
-
-func setWindowSize(f *os.File, w, h int) {
-	syscall.Syscall(
-		syscall.SYS_IOCTL,
-		f.Fd(),
-		uintptr(syscall.TIOCSWINSZ),
-		uintptr(unsafe.Pointer(&struct{ h, w, x, y uint16 }{uint16(h), uint16(w), 0, 0})),
-	)
+	//
+	IsRunInContainer bool
+	ContainerImage   string
 }
 
 func (s *Server) Start() error {
@@ -68,32 +57,12 @@ func (s *Server) Start() error {
 	}
 
 	ssh.Handle(func(session ssh.Session) {
-		cmd := exec.Command(s.Shell)
-		ptyReq, windowCh, isPty := session.Pty()
-		if isPty {
-			cmd.Env = append(
-				cmd.Env,
-				fmt.Sprintf("TERM=%s", ptyReq.Term),
-			)
-			f, err := pty.Start(cmd)
-			if err != nil {
-				panic(err)
-			}
-
-			go func() {
-				for window := range windowCh {
-					setWindowSize(f, window.Width, window.Height)
-				}
-			}()
-
-			go io.Copy(f, session) // stdin
-			go io.Copy(session, f) // stdout
-
-			cmd.Wait()
-		} else {
-			io.WriteString(session, "No PTY Requested.\n")
-			session.Exit(1)
+		if s.IsRunInContainer {
+			s.runInContainer(session)
+			return
 		}
+
+		s.runInHost(session)
 	})
 
 	options := []ssh.Option{
