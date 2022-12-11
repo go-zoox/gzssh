@@ -6,6 +6,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -152,12 +154,34 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("failed to start shell: %v", err)
 	}
 
+	//
+	// signal.Ignore(syscall.SIGINT)
+
+	go func() {
+		sigc := make(chan os.Signal, 1)
+		signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
+		for {
+			s := <-sigc
+			switch s {
+			case syscall.SIGINT, syscall.SIGTERM:
+				// if err := session.Signal(ssh.SIGINT); err != nil {
+				// 	logger.Errorf("failed to send signal SIGINT: %v", err)
+				// }
+
+				// issue: https://github.com/golang/go/issues/16597#issuecomment-548053530
+				// question: Looks like ssh.SIGINT is not supported by OpenSSH
+				// solution: https://github.com/mihaitodor/wormhole/blob/d5fbc432650a7ccdc9d8b80890dd58c19e236279/transport/transport.go#L107
+
+				stdin.Write([]byte("\x03"))
+			}
+		}
+	}()
+
 	// Accepting commands
 	// inspired by: https://github.com/inatus/ssh-client-go
 	for {
 		reader := bufio.NewReader(os.Stdin)
 		str, err := reader.ReadString('\n')
-		fmt.Println("eee:", err)
 		if err == io.EOF {
 			return nil
 		}
