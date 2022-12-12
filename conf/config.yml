@@ -1,0 +1,6 @@
+port: 6666
+
+user: zero
+pass: test
+
+# run_in_coontainer: true
