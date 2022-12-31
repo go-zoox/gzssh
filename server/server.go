@@ -212,6 +212,14 @@ func (s *Server) Start() error {
 				logger.Infof("[connection][remote: %s] failed to connect (err: %s).", conn.RemoteAddr(), err)
 			}
 
+			// default not allow login
+			server.PasswordHandler = func(ctx ssh.Context, password string) bool {
+				return false
+			}
+			server.PublicKeyHandler = func(ctx ssh.Context, key ssh.PublicKey) bool {
+				return false
+			}
+
 			return nil
 		}),
 	}
