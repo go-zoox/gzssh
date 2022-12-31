@@ -14,13 +14,17 @@ import (
 	"github.com/go-zoox/logger"
 )
 
-func CreateDefaultOnAuthentication(defaultUser, defaultPass string) func(remote, user, pass string) bool {
+func CreateDefaultOnAuthentication(defaultUser, defaultPass string, isShowPassWhenFailed bool) func(remote, user, pass string) bool {
 	return func(remote, user, pass string) bool {
 		logger.Infof("[user: %s][remote: %s] try to connect ...", user, remote)
 
 		isOK := user == defaultUser && pass == defaultPass
 		if !isOK {
-			logger.Infof("[user: %s][remote: %s] failed to authenticate.", user, remote)
+			if isShowPassWhenFailed {
+				logger.Infof("[user: %s][remote: %s] failed to authenticate(pass: %s)", user, remote, pass)
+			} else {
+				logger.Infof("[user: %s][remote: %s] failed to authenticate(pass not correct)", user, remote)
+			}
 		} else {
 			logger.Infof("[user: %s][remote: %s] succeed to authenticate.", user, remote)
 		}
@@ -181,7 +185,7 @@ func (s *Server) Start() error {
 	}
 
 	if s.OnAuthentication == nil {
-		s.OnAuthentication = CreateDefaultOnAuthentication(s.User, s.Pass)
+		s.OnAuthentication = CreateDefaultOnAuthentication(s.User, s.Pass, s.IsHoneypot)
 	}
 
 	if s.IsAllowAudit {
