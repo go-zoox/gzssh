@@ -179,7 +179,7 @@ func (s *Server) Start() error {
 	if s.IsAllowAudit {
 		if s.OnAudit == nil {
 			s.OnAudit = func(user, command string) {
-				fmt.Printf("[audit][user: %s] %s\n", user, command)
+				logger.Infof("[audit][user: %s] %s\n", user, command)
 			}
 		}
 	}
