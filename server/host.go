@@ -13,6 +13,10 @@ import (
 func (s *Server) runInHost(session ssh.Session) (int, error) {
 	ptyReq, windowCh, isPty := session.Pty()
 	user := session.User()
+	var auditor *Auditor
+	if s.auditor != nil {
+		auditor = s.auditor(user)
+	}
 
 	// 1. interfactive
 	if isPty {
@@ -36,8 +40,8 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 		}()
 
 		var writers io.Writer
-		if s.auditor != nil {
-			writers = io.MultiWriter(f, s.auditor(user))
+		if auditor != nil {
+			writers = io.MultiWriter(f, auditor)
 		} else {
 			writers = f
 		}
@@ -53,10 +57,12 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 	// 2.1 run command
 	commands := session.Command()
 	if len(commands) != 0 {
-		if s.auditor != nil {
+		if auditor != nil {
 			for _, c := range commands {
-				s.auditor(user).Write([]byte(c))
+				auditor.Write([]byte(c))
 			}
+
+			auditor.Write([]byte{'\r'})
 		}
 
 		cmd := exec.Command("sh", "-c", strings.Join(commands, "\n"))

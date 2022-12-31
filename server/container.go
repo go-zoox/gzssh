@@ -19,8 +19,14 @@ import (
 )
 
 func (s *Server) runInContainer(session ssh.Session) (int, error) {
+	user := session.User()
 	env := session.Environ()
 	ptyReq, _, isPty := session.Pty()
+
+	var auditor *Auditor
+	if s.auditor != nil {
+		auditor = s.auditor(user)
+	}
 
 	for k, v := range s.Environment {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
@@ -28,9 +34,20 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	env = append(env, fmt.Sprintf("TERM=%s", ptyReq.Term))
 	env = append(env, fmt.Sprintf("LOGIN_USER=%s", session.User()))
 
+	commands := session.Command()
+	if len(commands) != 0 {
+		if s.auditor != nil {
+			for _, c := range commands {
+				auditor.Write([]byte(c))
+			}
+
+			auditor.Write([]byte{'\r'})
+		}
+	}
+
 	cfg := &container.Config{
 		Image:        s.Image,
-		Cmd:          session.Command(),
+		Cmd:          commands,
 		Env:          env,
 		Tty:          isPty,
 		OpenStdin:    true,
@@ -81,8 +98,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		}
 	}
 
-	fmt.Println("hostCfg:", hostCfg.Resources.Memory)
-	status, cleanup, err := runInDocker(s, cfg, hostCfg, session)
+	status, cleanup, err := runInDocker(s, cfg, hostCfg, session, auditor)
 	defer cleanup()
 	if err != nil {
 		fmt.Fprintln(session, err)
@@ -92,7 +108,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	return int(status), err
 }
 
-func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, session ssh.Session) (status int64, cleanup func(), err error) {
+func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, session ssh.Session, auditor *Auditor) (status int64, cleanup func(), err error) {
 	var docker *client.Client
 	docker, err = client.NewClientWithOpts()
 	if err != nil {
@@ -179,8 +195,8 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	go func() {
 		defer stream.CloseWrite()
 		var writers io.Writer
-		if s.auditor != nil {
-			writers = io.MultiWriter(stream.Conn, s.auditor(session.User()))
+		if auditor != nil {
+			writers = io.MultiWriter(stream.Conn, auditor)
 		} else {
 			writers = stream.Conn
 		}

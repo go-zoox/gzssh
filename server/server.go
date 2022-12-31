@@ -43,8 +43,8 @@ func (a *Auditor) Write(p []byte) (n int, err error) {
 	// fmt.Println(p)
 
 	for _, b := range p {
-		// enter
-		if b == '\r' {
+		// enter '\r'
+		if b == 13 {
 			command := strings.TrimSpace(string(a.buf))
 			if len(command) != 0 {
 				a.Print(a.User, command)
@@ -187,7 +187,7 @@ func (s *Server) Start() error {
 	if s.IsAllowAudit {
 		if s.OnAudit == nil {
 			s.OnAudit = func(user, command string) {
-				logger.Infof("[audit][user: %s] %s\n", user, command)
+				logger.Infof("[audit][user: %s] %s", user, command)
 			}
 		}
 	}
@@ -241,9 +241,9 @@ func (s *Server) Start() error {
 		user := session.User()
 		remote := session.RemoteAddr().String()
 		if err != nil {
-			logger.Infof("[user: %s][remote: %s] exit(code: %s, error: %s).", user, remote, exitCode, err)
+			logger.Infof("[user: %s][remote: %s] exit(code: %d, error: %s).", user, remote, exitCode, err)
 		} else {
-			logger.Infof("[user: %s][remote: %s] exit(code: %s).", user, remote, exitCode)
+			logger.Infof("[user: %s][remote: %s] exit(code: %d).", user, remote, exitCode)
 		}
 
 		session.Exit(exitCode)
