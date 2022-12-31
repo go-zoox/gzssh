@@ -155,7 +155,11 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	cleanup = func() {
-		docker.ContainerRemove(ctx, res.ID, types.ContainerRemoveOptions{})
+		if !s.IsContainerAutoRemoveWhenExit {
+			docker.ContainerStop(ctx, res.ID, nil)
+		} else {
+			docker.ContainerRemove(ctx, res.ID, types.ContainerRemoveOptions{})
+		}
 	}
 	opts := types.ContainerAttachOptions{
 		Stdin:  cfg.AttachStdin,
@@ -170,7 +174,12 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	cleanup = func() {
-		docker.ContainerRemove(ctx, res.ID, types.ContainerRemoveOptions{})
+		if !s.IsContainerAutoRemoveWhenExit {
+			docker.ContainerStop(ctx, res.ID, nil)
+		} else {
+			docker.ContainerRemove(ctx, res.ID, types.ContainerRemoveOptions{})
+		}
+
 		stream.Close()
 	}
 

@@ -98,8 +98,9 @@ type Server struct {
 	Pass string
 
 	//
-	IsRunInContainer bool
-	WorkDir          string
+	IsRunInContainer              bool
+	IsContainerAutoRemoveWhenExit bool
+	WorkDir                       string
 	// Container Image
 	Image string
 	// Container Image Registry User
@@ -231,6 +232,7 @@ func (s *Server) Start() error {
 	// if honeypot, force run in container, avoid being attack.
 	if s.IsHoneypot {
 		s.IsRunInContainer = true
+		s.IsContainerAutoRemoveWhenExit = true
 
 		if s.IsHoneypotAllowAllUser {
 			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
