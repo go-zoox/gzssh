@@ -149,7 +149,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	logger.Infof("[conatiner] run with image: %s ...", cfg.Image)
-	res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, "")
+	res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, fmt.Sprintf("%s_%s_%s", "gzssh", s.Version, session.Context().SessionID()))
 	if err != nil {
 		return
 	}
