@@ -15,11 +15,19 @@ import (
 )
 
 func (s *Server) runInContainer(session ssh.Session) {
-	_, _, isPty := session.Pty()
+	env := session.Environ()
+	ptyReq, _, isPty := session.Pty()
+
+	for k, v := range s.Environment {
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
+	env = append(env, fmt.Sprintf("TERM=%s", ptyReq.Term))
+	env = append(env, fmt.Sprintf("EXECUTE_USER=%s", session.User()))
+
 	cfg := &container.Config{
 		Image:        s.ContainerImage,
 		Cmd:          session.Command(),
-		Env:          session.Environ(),
+		Env:          env,
 		Tty:          isPty,
 		OpenStdin:    true,
 		AttachStdin:  true,

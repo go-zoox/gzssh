@@ -78,6 +78,18 @@ func (s *Server) Start() error {
 		s.IdleTimeout = 60 * time.Second
 	}
 
+	if s.Environment == nil {
+		s.Environment = map[string]string{}
+	}
+	s.Environment["SERVER_BRAND_TYPE_NAME"] = "GZSSH"
+	s.Environment["SERVER_BRAND_TYPE_VERSION"] = s.Version
+	s.Environment["SERVER_BRAND_NAME"] = s.BrandName
+	if s.IsRunInContainer {
+		s.Environment["SERVER_RUN_CONTEXT"] = "CONTAINER"
+	} else {
+		s.Environment["SERVER_RUN_CONTEXT"] = "HOST"
+	}
+
 	if s.OnAuthentication == nil {
 		s.OnAuthentication = CreateDefaultOnAuthentication(s.User, s.Pass)
 	}

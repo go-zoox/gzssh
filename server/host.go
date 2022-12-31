@@ -17,10 +17,12 @@ func (s *Server) runInHost(session ssh.Session) {
 	if isPty {
 		cmd := exec.Command(s.Shell)
 
-		cmd.Env = append(
-			cmd.Env,
-			fmt.Sprintf("TERM=%s", ptyReq.Term),
-		)
+		for k, v := range s.Environment {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		}
+		cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("EXECUTE_USER=%s", session.User()))
+
 		f, err := pty.Start(cmd)
 		if err != nil {
 			panic(err)
@@ -44,7 +46,13 @@ func (s *Server) runInHost(session ssh.Session) {
 	// 2.1 run command
 	commands := session.Command()
 	if len(commands) != 0 {
-		output, err := exec.Command("sh", "-c", strings.Join(commands, "\n")).CombinedOutput()
+		cmd := exec.Command("sh", "-c", strings.Join(commands, "\n"))
+		for k, v := range s.Environment {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		}
+		cmd.Env = append(cmd.Env, fmt.Sprintf("EXECUTE_USER=%s", session.User()))
+
+		output, err := cmd.CombinedOutput()
 		if err != nil {
 			io.WriteString(session, err.Error()+"\n")
 			session.Exit(1)
