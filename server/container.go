@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gliderlabs/ssh"
+	"github.com/go-zoox/logger"
 )
 
 func (s *Server) runInContainer(session ssh.Session) {
@@ -32,7 +33,7 @@ func (s *Server) runInContainer(session ssh.Session) {
 	defer cleanup()
 	if err != nil {
 		fmt.Fprintln(session, err)
-		log.Println(err)
+		logger.Errorf("failed to run in docker: %v", err)
 	}
 
 	session.Exit(int(status))
@@ -82,7 +83,12 @@ func runInDocker(cfg *container.Config, session ssh.Session) (status int64, clea
 		if cfg.Tty {
 			_, err = io.Copy(session, stream.Reader)
 		} else {
-			_, err = stdcopy.StdCopy(session, session.Stderr(), stream.Reader)
+			if len(session.Command()) != 0 {
+				_, err = stdcopy.StdCopy(session, session.Stderr(), stream.Reader)
+			} else {
+				_, err = io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with GZSSH (Containered).\n", session.User()))
+				status = 0
+			}
 		}
 
 		outputErr <- err
@@ -120,8 +126,9 @@ func runInDocker(cfg *container.Config, session ssh.Session) (status int64, clea
 		return
 	case result := <-resultC:
 		status = result.StatusCode
+	case err = <-outputErr:
+		return
 	}
 
-	err = <-outputErr
 	return
 }
