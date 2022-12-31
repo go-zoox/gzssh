@@ -27,7 +27,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 
 	var auditor *Auditor
 	if s.auditor != nil {
-		auditor = s.auditor(user)
+		auditor = s.auditor(user, isPty)
 	}
 
 	for k, v := range s.Environment {

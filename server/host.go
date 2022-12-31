@@ -15,7 +15,7 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 	user := session.User()
 	var auditor *Auditor
 	if s.auditor != nil {
-		auditor = s.auditor(user)
+		auditor = s.auditor(user, isPty)
 	}
 
 	// 1. interfactive
