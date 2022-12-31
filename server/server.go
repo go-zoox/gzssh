@@ -11,15 +11,15 @@ import (
 	"github.com/go-zoox/logger"
 )
 
-func CreateDefaultOnAuthentication(defaultUser, defaultPass string) func(user, pass string) bool {
-	return func(user, pass string) bool {
-		logger.Infof("[user: %s] try to connect ...", user)
+func CreateDefaultOnAuthentication(defaultUser, defaultPass string) func(remote, user, pass string) bool {
+	return func(remote, user, pass string) bool {
+		logger.Infof("[user: %s][remote: %s] try to connect ...", user, remote)
 
 		isOK := user == defaultUser && pass == defaultPass
 		if !isOK {
-			logger.Infof("[user: %s] failed to authenticate.", user)
+			logger.Infof("[user: %s][remote: %s] failed to authenticate.", user, remote)
 		} else {
-			logger.Infof("[user: %s] succeed to authenticate.", user)
+			logger.Infof("[user: %s][remote: %s] succeed to authenticate.", user, remote)
 		}
 
 		return isOK
@@ -33,7 +33,7 @@ type Server struct {
 	Environment map[string]string
 	IdleTimeout time.Duration
 	//
-	OnAuthentication func(user, pass string) bool
+	OnAuthentication func(remote, user, pass string) bool
 	//
 	User string
 	Pass string
@@ -125,11 +125,12 @@ func (s *Server) Start() error {
 
 	if s.User != "" && s.Pass != "" {
 		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-			return s.OnAuthentication(ctx.User(), pass)
+			return s.OnAuthentication(ctx.RemoteAddr().String(), ctx.User(), pass)
 		}))
 	} else if s.AuthServer != "" {
 		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
 			url := fmt.Sprintf("%s/login", s.AuthServer)
+			remote := ctx.RemoteAddr().String()
 			user := ctx.User()
 
 			response, err := fetch.Post(url, &fetch.Config{
@@ -140,6 +141,7 @@ func (s *Server) Start() error {
 				},
 				Body: map[string]string{
 					"from":     "gzssh",
+					"remote":   remote,
 					"username": user,
 					"password": pass,
 				},
@@ -176,13 +178,14 @@ func (s *Server) Start() error {
 			// return true
 
 			// or use ssh.KeysEqual() to compare against known keys
+			remote := ctx.RemoteAddr()
 			user := ctx.User()
 			isOK := ssh.KeysEqual(key, publicKeyPEM)
-			logger.Infof("[user: %s] try to connect ...", user)
+			logger.Infof("[user: %s][remote: %s] try to connect ...", user, remote)
 			if !isOK {
-				logger.Infof("[user: %s] failed to authenticate.", user)
+				logger.Infof("[user: %s][remote: %s] failed to authenticate.", user, remote)
 			} else {
-				logger.Infof("[user: %s] succeed to authenticate.", user)
+				logger.Infof("[user: %s][remote: %s] succeed to authenticate.", user, remote)
 			}
 
 			return isOK
