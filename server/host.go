@@ -4,15 +4,19 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 
 	"github.com/creack/pty"
 	"github.com/gliderlabs/ssh"
 )
 
 func (s *Server) runInHost(session ssh.Session) {
-	cmd := exec.Command(s.Shell)
 	ptyReq, windowCh, isPty := session.Pty()
+
+	// 1. interfactive
 	if isPty {
+		cmd := exec.Command(s.Shell)
+
 		cmd.Env = append(
 			cmd.Env,
 			fmt.Sprintf("TERM=%s", ptyReq.Term),
@@ -32,8 +36,27 @@ func (s *Server) runInHost(session ssh.Session) {
 		go io.Copy(session, f) // stdout
 
 		cmd.Wait()
-	} else {
-		io.WriteString(session, "No PTY Requested.\n")
-		session.Exit(1)
+		return
 	}
+
+	// 2. non-interactive => No PTY Requested
+
+	// 2.1 run command
+	commands := session.Command()
+	if len(commands) != 0 {
+		output, err := exec.Command("sh", "-c", strings.Join(commands, "\n")).CombinedOutput()
+		if err != nil {
+			io.WriteString(session, err.Error()+"\n")
+			session.Exit(1)
+			return
+		}
+
+		io.WriteString(session, string(output)+"\n")
+		session.Exit(0)
+		return
+	}
+
+	// 2.2 Disable pseudo-terminal allocation.
+	io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with GZSSH.\n", session.User()))
+	session.Exit(0)
 }
