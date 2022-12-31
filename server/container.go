@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -47,8 +48,9 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	}
 
 	cfg := &container.Config{
-		Image:        s.Image,
-		Cmd:          commands,
+		Image: s.Image,
+		// Cmd:          commands,
+		Cmd:          []string{"sh", "-c", strings.Join(commands, " ")},
 		Env:          env,
 		Tty:          isPty,
 		OpenStdin:    true,
