@@ -38,6 +38,9 @@ type Server struct {
 	//
 	IsRunInContainer bool
 	ContainerImage   string
+
+	// HostKeyPEM is the server private key for sign
+	HostKeyPEM string
 }
 
 func (s *Server) Start() error {
@@ -79,6 +82,10 @@ func (s *Server) Start() error {
 			server.IdleTimeout = s.IdleTimeout
 			return nil
 		}),
+	}
+
+	if s.HostKeyPEM != "" {
+		options = append(options, ssh.HostKeyPEM([]byte(s.HostKeyPEM)))
 	}
 
 	if s.Port == 0 {

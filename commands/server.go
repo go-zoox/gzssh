@@ -1,7 +1,10 @@
 package commands
 
 import (
+	"io/ioutil"
+
 	"github.com/go-zoox/cli"
+	"github.com/go-zoox/fs"
 	"github.com/go-zoox/gzssh/server"
 )
 
@@ -46,8 +49,32 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"CONTAINER_IMAGE"},
 				Value:   "whatwewant/zmicro:v1",
 			},
+			&cli.StringFlag{
+				Name:    "private-key",
+				Usage:   "the private key",
+				Aliases: []string{},
+				EnvVars: []string{"PRIVATE_KEY"},
+			},
+			&cli.StringFlag{
+				Name:    "private-key-path",
+				Usage:   "the filepath of private key",
+				Aliases: []string{},
+				EnvVars: []string{"PRIVATE_KEY_PATH"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
+			privateKey := ctx.String("private-key")
+			privateKeyFilepath := ctx.String("private-key-path")
+			if fs.IsExist(privateKeyFilepath) {
+				if privateKey == "" {
+					pemBytes, err := ioutil.ReadFile(privateKeyFilepath)
+					if err != nil {
+						return err
+					}
+					privateKey = string(pemBytes)
+				}
+			}
+
 			s := &server.Server{
 				Host: ctx.String("host"),
 				Port: ctx.Int("port"),
@@ -59,6 +86,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				//
 				IsRunInContainer: ctx.Bool("run-in-container"),
 				ContainerImage:   ctx.String("container-image"),
+				//
+				HostKeyPEM: privateKey,
 			}
 
 			return s.Start()
