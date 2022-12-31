@@ -39,8 +39,13 @@ type Server struct {
 	IsRunInContainer bool
 	ContainerImage   string
 
-	// HostKeyPEM is the server private key for sign
-	HostKeyPEM string
+	// ServerPrivateKey is the server private key for sign host key
+	//  also named HostKey PEM
+	ServerPrivateKey string
+
+	// ClientAuthorizedKey is the client public key for client authorized
+	//  also named Authorized Key
+	ClientAuthorizedKey string
 }
 
 func (s *Server) Start() error {
@@ -69,23 +74,50 @@ func (s *Server) Start() error {
 	})
 
 	options := []ssh.Option{
-		ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-			return s.OnAuthentication(ctx.User(), pass)
-		}),
-		// ssh.PublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
-		// 	// allow all keys
-		// 	return true
-		// 	// or use ssh.KeysEqual() to compare against known keys
-		// 	// return ssh.KeysEqual()
-		// }),
 		ssh.Option(func(server *ssh.Server) error {
 			server.IdleTimeout = s.IdleTimeout
 			return nil
 		}),
 	}
 
-	if s.HostKeyPEM != "" {
-		options = append(options, ssh.HostKeyPEM([]byte(s.HostKeyPEM)))
+	if s.User != "" && s.Pass != "" {
+		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
+			return s.OnAuthentication(ctx.User(), pass)
+		}))
+	}
+
+	if s.ClientAuthorizedKey != "" {
+		// https://stackoverflow.com/questions/62236441/getting-ssh-short-read-error-when-trying-to-parse-a-public-key-in-golang
+		authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(s.ClientAuthorizedKey))
+		if err != nil {
+			return err
+		}
+
+		publicKeyPEM, err := ssh.ParsePublicKey(authorizedKey.Marshal())
+		if err != nil {
+			return err
+		}
+
+		options = append(options, ssh.PublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
+			// allow all keys
+			// return true
+
+			// or use ssh.KeysEqual() to compare against known keys
+			user := ctx.User()
+			isOK := ssh.KeysEqual(key, publicKeyPEM)
+			logger.Infof("[user: %s] try to connect ...", user)
+			if !isOK {
+				logger.Infof("[user: %s] failed to authenticate.", user)
+			} else {
+				logger.Infof("[user: %s] succeed to authenticate.", user)
+			}
+
+			return isOK
+		}))
+	}
+
+	if s.ServerPrivateKey != "" {
+		options = append(options, ssh.HostKeyPEM([]byte(s.ServerPrivateKey)))
 	}
 
 	if s.Port == 0 {
