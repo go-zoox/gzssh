@@ -13,11 +13,12 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/dustin/go-humanize"
 	"github.com/gliderlabs/ssh"
 	"github.com/go-zoox/logger"
 )
 
-func (s *Server) runInContainer(session ssh.Session) (exitCode int) {
+func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	env := session.Environ()
 	ptyReq, _, isPty := session.Pty()
 
@@ -44,6 +45,23 @@ func (s *Server) runInContainer(session ssh.Session) (exitCode int) {
 		// User: "1000:1000",
 	}
 
+	hostCfg := &container.HostConfig{}
+	if s.Memory != "" {
+		var memory uint64
+		memory, err := humanize.ParseBytes(s.Memory)
+		if err != nil {
+			return 1, err
+		}
+
+		hostCfg.Resources.Memory = int64(memory)
+	}
+	if s.CPUCount != 0 {
+		hostCfg.Resources.CPUCount = int64(s.CPUCount)
+	}
+	if s.CPUPercent != 0 {
+		hostCfg.Resources.CPUCount = int64(s.CPUPercent)
+	}
+
 	if s.IsHoneypot {
 		// user := session.User()
 		// cfg.Env = append(cfg.Env, fmt.Sprintf("HOME=/home/%s", user))
@@ -63,18 +81,18 @@ func (s *Server) runInContainer(session ssh.Session) (exitCode int) {
 		}
 	}
 
-	status, cleanup, err := runInDocker(s, cfg, session)
+	fmt.Println("hostCfg:", hostCfg.Resources.Memory)
+	status, cleanup, err := runInDocker(s, cfg, hostCfg, session)
 	defer cleanup()
 	if err != nil {
 		fmt.Fprintln(session, err)
 		logger.Errorf("failed to run in docker: %v", err)
 	}
 
-	exitCode = int(status)
-	return
+	return int(status), err
 }
 
-func runInDocker(s *Server, cfg *container.Config, session ssh.Session) (status int64, cleanup func(), err error) {
+func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, session ssh.Session) (status int64, cleanup func(), err error) {
 	var docker *client.Client
 	docker, err = client.NewClientWithOpts()
 	if err != nil {
@@ -115,7 +133,7 @@ func runInDocker(s *Server, cfg *container.Config, session ssh.Session) (status 
 	}
 
 	logger.Infof("[conatiner] run with image: %s ...", cfg.Image)
-	res, err = docker.ContainerCreate(ctx, cfg, nil, nil, nil, "")
+	res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, "")
 	if err != nil {
 		return
 	}

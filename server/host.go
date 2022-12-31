@@ -10,7 +10,7 @@ import (
 	"github.com/gliderlabs/ssh"
 )
 
-func (s *Server) runInHost(session ssh.Session) (exitCode int) {
+func (s *Server) runInHost(session ssh.Session) (int, error) {
 	ptyReq, windowCh, isPty := session.Pty()
 	user := session.User()
 
@@ -26,7 +26,7 @@ func (s *Server) runInHost(session ssh.Session) (exitCode int) {
 
 		f, err := pty.Start(cmd)
 		if err != nil {
-			panic(err)
+			return 1, err
 		}
 
 		go func() {
@@ -45,7 +45,7 @@ func (s *Server) runInHost(session ssh.Session) (exitCode int) {
 		go io.Copy(session, f)       // stdout
 
 		cmd.Wait()
-		return
+		return 0, nil
 	}
 
 	// 2. non-interactive => No PTY Requested
@@ -68,17 +68,14 @@ func (s *Server) runInHost(session ssh.Session) (exitCode int) {
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			io.WriteString(session, err.Error()+"\n")
-			exitCode = 1
-			return
+			return 1, err
 		}
 
 		io.WriteString(session, string(output)+"\n")
-		exitCode = 0
-		return
+		return 0, nil
 	}
 
 	// 2.2 Disable pseudo-terminal allocation.
 	io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with %s.\n", session.User(), s.BrandName))
-	exitCode = 0
-	return
+	return 0, nil
 }

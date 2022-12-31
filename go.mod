@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/creack/pty v1.1.18
 	github.com/docker/docker v20.10.21+incompatible
+	github.com/dustin/go-humanize v1.0.0
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/go-zoox/cli v1.0.10
 	github.com/go-zoox/fetch v1.5.5

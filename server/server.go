@@ -140,6 +140,14 @@ type Server struct {
 	HoneypotUID  int
 	HoneypotGID  int
 
+	// Resource LIMIT
+	// Memory is the memory limit for container, such as 100MB = 100M, 1GB=1G
+	Memory string
+	// CPUCount  is the cpu core count limit for container, such as 1, 2
+	CPUCount int
+	// CPUCount  is the cpu percent limit for container, range: 1~100, such as 10, 80
+	CPUPercent int
+
 	//
 	auditor func(user string) *Auditor
 }
@@ -222,16 +230,21 @@ func (s *Server) Start() error {
 
 	ssh.Handle(func(session ssh.Session) {
 		exitCode := 0
+		var err error
 
 		if s.IsRunInContainer {
-			exitCode = s.runInContainer(session)
+			exitCode, err = s.runInContainer(session)
 		} else {
-			exitCode = s.runInHost(session)
+			exitCode, err = s.runInHost(session)
 		}
 
 		user := session.User()
 		remote := session.RemoteAddr().String()
-		logger.Infof("[user: %s][remote: %s] exit(code: %s).", user, remote, exitCode)
+		if err != nil {
+			logger.Infof("[user: %s][remote: %s] exit(code: %s, error: %s).", user, remote, exitCode, err)
+		} else {
+			logger.Infof("[user: %s][remote: %s] exit(code: %s).", user, remote, exitCode)
+		}
 
 		session.Exit(exitCode)
 	})

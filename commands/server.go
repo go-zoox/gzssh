@@ -158,6 +158,24 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"HONEYPOT_GID"},
 			},
+			&cli.StringFlag{
+				Name:    "memory",
+				Usage:   "Max Memory, such as 100M, 1G",
+				Aliases: []string{},
+				EnvVars: []string{"MEMORY"},
+			},
+			&cli.IntFlag{
+				Name:    "cpu-count",
+				Usage:   "Max CPU Core Count, such as 2",
+				Aliases: []string{},
+				EnvVars: []string{"CPU_COUNT"},
+			},
+			&cli.IntFlag{
+				Name:    "cpu-percent",
+				Usage:   "Max CPU Percent, range: 1~99, such as 10",
+				Aliases: []string{},
+				EnvVars: []string{"CPU_PERCENT"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -223,6 +241,10 @@ func RegistryServer(app *cli.MultipleProgram) {
 				HoneypotUID:            ctx.Int("honeypot-uid"),
 				HoneypotGID:            ctx.Int("honeypot-gid"),
 				HoneypotUser:           ctx.String("honeypot-user"),
+				//
+				Memory:     ctx.String("memory"),
+				CPUCount:   ctx.Int("cpu-count"),
+				CPUPercent: ctx.Int("cpu-percent"),
 			}
 
 			return s.Start()
