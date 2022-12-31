@@ -92,6 +92,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"AUTH_SERVER"},
 			},
+			&cli.BoolFlag{
+				Name:    "allow-sftp",
+				Usage:   "allow sftp server",
+				Aliases: []string{},
+				EnvVars: []string{"ALLOW_SFTP"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -142,6 +148,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				AuthServer: ctx.String("auth-server"),
 				//
 				Version: ctx.App.Version,
+				//
+				IsAllowSFTP: ctx.Bool("allow-sftp"),
 			}
 
 			return s.Start()

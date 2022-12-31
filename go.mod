@@ -10,6 +10,7 @@ require (
 	github.com/go-zoox/fetch v1.5.5
 	github.com/go-zoox/fs v1.3.0
 	github.com/go-zoox/logger v1.3.1
+	github.com/pkg/sftp v1.13.5
 	golang.org/x/crypto v0.4.0
 	golang.org/x/term v0.3.0
 )
@@ -30,6 +31,7 @@ require (
 	github.com/goccy/go-yaml v1.9.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/kr/fs v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/moby/term v0.0.0-20221205130635-1aeaba878587 // indirect

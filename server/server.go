@@ -8,6 +8,7 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/go-zoox/fetch"
+	"github.com/go-zoox/gzssh/server/sftp"
 	"github.com/go-zoox/logger"
 )
 
@@ -60,6 +61,9 @@ type Server struct {
 
 	//
 	Version string
+
+	//
+	IsAllowSFTP bool
 }
 
 func (s *Server) Start() error {
@@ -198,6 +202,19 @@ func (s *Server) Start() error {
 
 	if s.IsPtyDisabled {
 		options = append(options, ssh.NoPty())
+	}
+
+	if s.IsAllowSFTP {
+		options = append(options, ssh.Option(func(s *ssh.Server) error {
+			if s.SubsystemHandlers == nil {
+				s.SubsystemHandlers = map[string]ssh.SubsystemHandler{}
+			}
+
+			// sftp
+			s.SubsystemHandlers["sftp"] = sftp.CreateSftp()
+
+			return nil
+		}))
 	}
 
 	if s.Port == 0 {
