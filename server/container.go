@@ -104,7 +104,14 @@ func runInDocker(s *Server, cfg *container.Config, session ssh.Session) (status 
 
 	go func() {
 		defer stream.CloseWrite()
-		io.Copy(stream.Conn, session)
+		var writers io.Writer
+		if s.auditor != nil {
+			writers = io.MultiWriter(stream.Conn, s.auditor(session.User()))
+		} else {
+			writers = stream.Conn
+		}
+
+		io.Copy(writers, session)
 	}()
 
 	err = docker.ContainerStart(ctx, res.ID, types.ContainerStartOptions{})

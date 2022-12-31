@@ -2,8 +2,10 @@ package server
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -27,6 +29,56 @@ func CreateDefaultOnAuthentication(defaultUser, defaultPass string) func(remote,
 	}
 }
 
+type Auditor struct {
+	io.Writer
+
+	Print func(user, command string)
+
+	User string
+
+	buf []byte
+}
+
+func (a *Auditor) Write(p []byte) (n int, err error) {
+	// fmt.Println(p)
+
+	// enter
+	if p[len(p)-1] == '\r' {
+		if len(a.buf) != 0 {
+			command := strings.TrimSpace(string(a.buf))
+			if len(command) != 0 {
+				a.Print(a.User, command)
+			}
+
+			a.buf = nil
+		}
+	} else {
+		for _, b := range p {
+			// delete
+			if b == 127 {
+				if len(a.buf)-2 < 0 {
+					a.buf = nil
+				} else {
+					a.buf = a.buf[:len(a.buf)-2]
+				}
+			} else {
+				a.buf = append(a.buf, b)
+			}
+		}
+	}
+
+	return len(p), nil
+}
+
+func CreateDefaultAuditor(auditFn func(user, command string)) func(user string) *Auditor {
+	return func(user string) *Auditor {
+		return &Auditor{
+			Print: auditFn,
+			User:  user,
+		}
+	}
+}
+
 type Server struct {
 	Host        string
 	Port        int
@@ -35,6 +87,7 @@ type Server struct {
 	IdleTimeout time.Duration
 	//
 	OnAuthentication func(remote, user, pass string) bool
+	OnAudit          func(user, command string)
 	//
 	User string
 	Pass string
@@ -67,6 +120,12 @@ type Server struct {
 
 	//
 	IsAllowRemoteForward bool
+
+	//
+	IsAllowAudit bool
+
+	//
+	auditor func(user string) *Auditor
 }
 
 func (s *Server) Start() error {
@@ -99,6 +158,18 @@ func (s *Server) Start() error {
 
 	if s.OnAuthentication == nil {
 		s.OnAuthentication = CreateDefaultOnAuthentication(s.User, s.Pass)
+	}
+
+	if s.IsAllowAudit {
+		if s.OnAudit == nil {
+			s.OnAudit = func(user, command string) {
+				fmt.Printf("[audit][user: %s] %s\n", user, command)
+			}
+		}
+	}
+
+	if s.OnAudit != nil {
+		s.auditor = CreateDefaultAuditor(s.OnAudit)
 	}
 
 	ssh.Handle(func(session ssh.Session) {

@@ -12,6 +12,7 @@ import (
 
 func (s *Server) runInHost(session ssh.Session) {
 	ptyReq, windowCh, isPty := session.Pty()
+	user := session.User()
 
 	// 1. interfactive
 	if isPty {
@@ -21,7 +22,7 @@ func (s *Server) runInHost(session ssh.Session) {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
 		}
 		cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
-		cmd.Env = append(cmd.Env, fmt.Sprintf("EXECUTE_USER=%s", session.User()))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("EXECUTE_USER=%s", user))
 
 		f, err := pty.Start(cmd)
 		if err != nil {
@@ -34,8 +35,14 @@ func (s *Server) runInHost(session ssh.Session) {
 			}
 		}()
 
-		go io.Copy(f, session) // stdin
-		go io.Copy(session, f) // stdout
+		var writers io.Writer
+		if s.auditor != nil {
+			writers = io.MultiWriter(f, s.auditor(user))
+		} else {
+			writers = f
+		}
+		go io.Copy(writers, session) // stdin
+		go io.Copy(session, f)       // stdout
 
 		cmd.Wait()
 		return
@@ -46,6 +53,12 @@ func (s *Server) runInHost(session ssh.Session) {
 	// 2.1 run command
 	commands := session.Command()
 	if len(commands) != 0 {
+		if s.auditor != nil {
+			for _, c := range commands {
+				s.auditor(user).Write([]byte(c))
+			}
+		}
+
 		cmd := exec.Command("sh", "-c", strings.Join(commands, "\n"))
 		for k, v := range s.Environment {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))

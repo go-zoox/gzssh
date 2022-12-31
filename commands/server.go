@@ -104,6 +104,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"ALLOW_REMOTE_FORWARD"},
 			},
+			&cli.BoolFlag{
+				Name:    "allow-audit",
+				Usage:   "allow audit",
+				Aliases: []string{},
+				EnvVars: []string{"ALLOW_AUDIT"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -158,6 +164,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				IsAllowSFTP: ctx.Bool("allow-sftp"),
 				//
 				IsAllowRemoteForward: ctx.Bool("allow-remote-forward"),
+				//
+				IsAllowAudit: ctx.Bool("allow-audit"),
 			}
 
 			return s.Start()
