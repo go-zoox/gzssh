@@ -42,28 +42,27 @@ type Auditor struct {
 func (a *Auditor) Write(p []byte) (n int, err error) {
 	// fmt.Println(p)
 
-	// enter
-	if p[len(p)-1] == '\r' {
-		if len(a.buf) != 0 {
+	for _, b := range p {
+		// enter
+		if b == '\r' {
 			command := strings.TrimSpace(string(a.buf))
 			if len(command) != 0 {
 				a.Print(a.User, command)
 			}
 
 			a.buf = nil
+			continue
 		}
-	} else {
-		for _, b := range p {
-			// delete
-			if b == 127 {
-				if len(a.buf)-2 < 0 {
-					a.buf = nil
-				} else {
-					a.buf = a.buf[:len(a.buf)-2]
-				}
+
+		// delete
+		if b == 127 {
+			if len(a.buf)-2 < 0 {
+				a.buf = nil
 			} else {
-				a.buf = append(a.buf, b)
+				a.buf = a.buf[:len(a.buf)-2]
 			}
+		} else {
+			a.buf = append(a.buf, b)
 		}
 	}
 
