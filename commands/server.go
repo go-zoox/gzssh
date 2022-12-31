@@ -86,6 +86,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"BRAND_NAME"},
 			},
+			&cli.StringFlag{
+				Name:    "auth-server",
+				Usage:   "auth server for verify user/pass, instead of user/pass",
+				Aliases: []string{},
+				EnvVars: []string{"AUTH_SERVER"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -132,6 +138,10 @@ func RegistryServer(app *cli.MultipleProgram) {
 				IsPtyDisabled: ctx.Bool("disable-pty"),
 				//
 				BrandName: ctx.String("brand-name"),
+				//
+				AuthServer: ctx.String("auth-server"),
+				//
+				Version: ctx.App.Version,
 			}
 
 			return s.Start()

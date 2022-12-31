@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/go-zoox/fetch"
 	"github.com/go-zoox/logger"
 )
 
@@ -48,11 +49,17 @@ type Server struct {
 	//  also named Authorized Key
 	ClientAuthorizedKey string
 
-	// is pty disabled
+	// IsPtyDisabled is pty disabled
 	IsPtyDisabled bool
 
-	// brand name for welcome message
+	// BrandName is brand name for welcome message
 	BrandName string
+
+	// AuthServer is used for verify user/pass, instead of user/pass
+	AuthServer string
+
+	//
+	Version string
 }
 
 func (s *Server) Start() error {
@@ -107,6 +114,36 @@ func (s *Server) Start() error {
 	if s.User != "" && s.Pass != "" {
 		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
 			return s.OnAuthentication(ctx.User(), pass)
+		}))
+	} else if s.AuthServer != "" {
+		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
+			url := fmt.Sprintf("%s/login", s.AuthServer)
+			user := ctx.User()
+
+			response, err := fetch.Post(url, &fetch.Config{
+				Headers: map[string]string{
+					"content-type": "application/json",
+					"accept":       "application/json",
+					"user-agent":   fmt.Sprintf("gzssh/%s go-zoox_fetch/%s", s.Version, fetch.Version),
+				},
+				Body: map[string]string{
+					"from":     "gzssh",
+					"username": user,
+					"password": pass,
+				},
+			})
+			if err != nil {
+				logger.Errorf("failed to login with user(%s) to %s (err: %v)", user, url, err)
+				return false
+			}
+
+			if !response.Ok() {
+				logger.Errorf("failed to login with user(%s) to %s (status: %d, response: %s)", user, url, response.Status, response.String())
+				return false
+			}
+
+			logger.Infof("[user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
+			return true
 		}))
 	}
 
