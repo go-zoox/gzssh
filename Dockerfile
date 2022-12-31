@@ -1,5 +1,5 @@
 # Builder
-FROM golang:1.18-alpine as builder
+FROM golang:1.19-alpine as builder
 RUN apk add --no-cache gcc g++ make git
 WORKDIR /build
 COPY go.mod ./
@@ -14,7 +14,7 @@ RUN GOOS=linux \
   -v -o gzssh
 
 # Server
-FROM golang:1.18-alpine
+FROM golang:1.19-alpine
 LABEL MAINTAINER="Zero<tobewhatwewant@gmail.com>"
 LABEL org.opencontainers.image.source="https://github.com/go-zoox/gzssh"
 ARG VERSION=latest
