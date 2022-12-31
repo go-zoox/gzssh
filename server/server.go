@@ -231,7 +231,7 @@ func (s *Server) Start() error {
 
 		user := session.User()
 		remote := session.RemoteAddr().String()
-		logger.Infof("[user: %s][remote: %s] exit(code: %s).", user, remote)
+		logger.Infof("[user: %s][remote: %s] exit(code: %s).", user, remote, exitCode)
 
 		session.Exit(exitCode)
 	})
