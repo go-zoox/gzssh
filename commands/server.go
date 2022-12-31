@@ -183,6 +183,19 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"CPU_PERCENT"},
 			},
+			&cli.IntFlag{
+				Name:    "idle-timeout",
+				Usage:   "idle timeout, unit: seconds, default: 60",
+				Aliases: []string{},
+				EnvVars: []string{"IDLE_TIMEOUT"},
+				Value:   60,
+			},
+			&cli.IntFlag{
+				Name:    "max-timeout",
+				Usage:   "max timeout, unit: seconds, no limit, if honeypot, 5 min",
+				Aliases: []string{},
+				EnvVars: []string{"MAX_TIMEOUT"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -253,6 +266,9 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Memory:     ctx.String("memory"),
 				CPUCount:   ctx.Int("cpu-count"),
 				CPUPercent: ctx.Int("cpu-percent"),
+				//
+				IdleTimeout: ctx.Int("idle-timeout"),
+				MaxTimeout:  ctx.Int("max-timeout"),
 			}
 
 			return s.Start()

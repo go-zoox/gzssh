@@ -94,7 +94,10 @@ type Server struct {
 	Port        int
 	Shell       string
 	Environment map[string]string
-	IdleTimeout time.Duration
+	// IdleTimeout, unit: seconds
+	IdleTimeout int
+	// MaxTimeout, unit: seconds
+	MaxTimeout int
 	//
 	OnAuthentication func(remote, user, pass string) bool
 	OnAudit          func(user, command string)
@@ -175,7 +178,7 @@ func (s *Server) Start() error {
 	}
 
 	if s.IdleTimeout == 0 {
-		s.IdleTimeout = 60 * time.Second
+		s.IdleTimeout = 60
 	}
 
 	if s.Environment == nil {
@@ -209,7 +212,13 @@ func (s *Server) Start() error {
 	options := []ssh.Option{
 		ssh.Option(func(server *ssh.Server) error {
 			// idle timeout
-			server.IdleTimeout = s.IdleTimeout
+			server.IdleTimeout = time.Duration(s.IdleTimeout) * time.Second
+
+			if s.IsHoneypot {
+				server.MaxTimeout = 5 * time.Minute
+			} else if s.MaxTimeout != 0 {
+				server.MaxTimeout = time.Duration(s.MaxTimeout) * time.Second
+			}
 
 			// connection
 			// connection start
