@@ -253,7 +253,7 @@ func (s *Server) Start() error {
 
 		if s.IsHoneypotAllowAllUser {
 			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-				logger.Infof("[honeypot] user %s from %s ...", ctx.User(), ctx.RemoteAddr().String())
+				logger.Infof("[honeypot] user %s from %s (user: %s, pass: %s)...", ctx.User(), ctx.RemoteAddr().String(), ctx.User(), pass)
 				return true
 			}))
 		}
