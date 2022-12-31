@@ -102,8 +102,13 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	status, cleanup, err := runInDocker(s, cfg, hostCfg, session, auditor)
 	defer cleanup()
 	if err != nil {
-		fmt.Fprintln(session, err)
 		logger.Errorf("failed to run in docker: %v", err)
+
+		if s.IsHoneypot {
+			fmt.Fprintln(session, "server internal error, see server log for detail")
+		} else {
+			fmt.Fprintln(session, err)
+		}
 	}
 
 	return int(status), err
