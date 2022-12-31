@@ -7,8 +7,9 @@ import (
 
 func main() {
 	app := cli.NewMultipleProgram(&cli.MultipleProgramConfig{
-		Name:  "multiple",
-		Usage: "multiple is a program that has multiple commands.",
+		Name:    "multiple",
+		Usage:   "multiple is a program that has multiple commands.",
+		Version: Version,
 	})
 
 	commands.RegistryServer(app)
