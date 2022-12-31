@@ -214,10 +214,10 @@ func (s *Server) Start() error {
 			// idle timeout
 			server.IdleTimeout = time.Duration(s.IdleTimeout) * time.Second
 
-			if s.IsHoneypot {
-				server.MaxTimeout = 5 * time.Minute
-			} else if s.MaxTimeout != 0 {
+			if s.MaxTimeout != 0 {
 				server.MaxTimeout = time.Duration(s.MaxTimeout) * time.Second
+			} else if server.MaxTimeout == 0 && s.IsHoneypot {
+				server.MaxTimeout = 5 * time.Minute
 			}
 
 			// connection
