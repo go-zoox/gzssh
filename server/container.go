@@ -36,21 +36,9 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	env = append(env, fmt.Sprintf("TERM=%s", ptyReq.Term))
 	env = append(env, fmt.Sprintf("LOGIN_USER=%s", session.User()))
 
-	commands := session.Command()
-	if len(commands) != 0 {
-		if s.auditor != nil {
-			for _, c := range commands {
-				auditor.Write([]byte(c))
-			}
-
-			auditor.Write([]byte{'\r'})
-		}
-	}
-
 	cfg := &container.Config{
 		Image: s.Image,
 		// Cmd:          commands,
-		Cmd:          []string{"sh", "-c", strings.Join(commands, " ")},
 		Env:          env,
 		Tty:          isPty,
 		OpenStdin:    true,
@@ -63,6 +51,19 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		WorkingDir:   s.WorkDir,
 		// User:         session.User(),
 		// User: "1000:1000",
+	}
+
+	commands := session.Command()
+	if len(commands) != 0 {
+		cfg.Cmd = []string{"sh", "-c", strings.Join(commands, " ")}
+
+		if s.auditor != nil {
+			for _, c := range commands {
+				auditor.Write([]byte(c))
+			}
+
+			auditor.Write([]byte{'\r'})
+		}
 	}
 
 	hostCfg := &container.HostConfig{}
