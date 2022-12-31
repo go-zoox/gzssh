@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -149,7 +150,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	logger.Infof("[conatiner] run with image: %s ...", cfg.Image)
-	res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, fmt.Sprintf("%s_%s_%s", "gzssh", s.Version, session.Context().SessionID()))
+	res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, fmt.Sprintf("%s_%s_%d_%s", "gzssh", s.Version, time.Now().UnixMilli(), session.Context().SessionID()))
 	if err != nil {
 		return
 	}
