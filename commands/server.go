@@ -98,6 +98,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"ALLOW_SFTP"},
 			},
+			&cli.BoolFlag{
+				Name:    "allow-remote-forward",
+				Usage:   "allow remote forward",
+				Aliases: []string{},
+				EnvVars: []string{"ALLOW_REMOTE_FORWARD"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -150,6 +156,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Version: ctx.App.Version,
 				//
 				IsAllowSFTP: ctx.Bool("allow-sftp"),
+				//
+				IsAllowRemoteForward: ctx.Bool("allow-remote-forward"),
 			}
 
 			return s.Start()

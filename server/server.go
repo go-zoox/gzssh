@@ -64,6 +64,9 @@ type Server struct {
 
 	//
 	IsAllowSFTP bool
+
+	//
+	IsAllowRemoteForward bool
 }
 
 func (s *Server) Start() error {
@@ -212,6 +215,36 @@ func (s *Server) Start() error {
 
 			// sftp
 			s.SubsystemHandlers["sftp"] = sftp.CreateSftp()
+
+			return nil
+		}))
+	}
+
+	if s.IsAllowRemoteForward {
+		options = append(options, ssh.Option(func(s *ssh.Server) error {
+			forwardHandler := &ssh.ForwardedTCPHandler{}
+
+			s.LocalPortForwardingCallback = ssh.LocalPortForwardingCallback(func(ctx ssh.Context, dhost string, dport uint32) bool {
+				logger.Infof("Accepted forward => %s:%d", dhost, dport)
+				return true
+			})
+
+			s.ReversePortForwardingCallback = ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
+				logger.Infof("attempt to bind %s:%d granted", host, port)
+				return true
+			})
+
+			if s.ChannelHandlers == nil {
+				s.ChannelHandlers = map[string]ssh.ChannelHandler{}
+			}
+			s.ChannelHandlers["direct-tcpip"] = ssh.DirectTCPIPHandler
+			s.ChannelHandlers["session"] = ssh.DefaultSessionHandler
+
+			if s.RequestHandlers == nil {
+				s.RequestHandlers = map[string]ssh.RequestHandler{}
+			}
+			s.RequestHandlers["tcpip-forward"] = forwardHandler.HandleSSHRequest
+			s.RequestHandlers["cancel-tcpip-forward"] = forwardHandler.HandleSSHRequest
 
 			return nil
 		}))
