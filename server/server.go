@@ -225,12 +225,12 @@ func (s *Server) Start() error {
 			forwardHandler := &ssh.ForwardedTCPHandler{}
 
 			s.LocalPortForwardingCallback = ssh.LocalPortForwardingCallback(func(ctx ssh.Context, dhost string, dport uint32) bool {
-				logger.Infof("Accepted forward => %s:%d", dhost, dport)
+				logger.Infof("accepted forward => %s:%d", dhost, dport)
 				return true
 			})
 
 			s.ReversePortForwardingCallback = ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
-				logger.Infof("attempt to bind %s:%d granted", host, port)
+				logger.Infof("attempt to bind => %s:%d", host, port)
 				return true
 			})
 
