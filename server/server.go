@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -46,6 +47,9 @@ type Server struct {
 	// ClientAuthorizedKey is the client public key for client authorized
 	//  also named Authorized Key
 	ClientAuthorizedKey string
+
+	//
+	IsPtyDisabled bool
 }
 
 func (s *Server) Start() error {
@@ -75,7 +79,20 @@ func (s *Server) Start() error {
 
 	options := []ssh.Option{
 		ssh.Option(func(server *ssh.Server) error {
+			// idle timeout
 			server.IdleTimeout = s.IdleTimeout
+
+			// connection
+			// connection start
+			server.ConnCallback = func(ctx ssh.Context, conn net.Conn) net.Conn {
+				logger.Infof("[connection][remote: %s] start to connect ...", conn.RemoteAddr())
+				return conn
+			}
+			// connected failed
+			server.ConnectionFailedCallback = func(conn net.Conn, err error) {
+				logger.Infof("[connection][remote: %s] failed to connect (err: %s).", conn.RemoteAddr(), err)
+			}
+
 			return nil
 		}),
 	}
@@ -118,6 +135,10 @@ func (s *Server) Start() error {
 
 	if s.ServerPrivateKey != "" {
 		options = append(options, ssh.HostKeyPEM([]byte(s.ServerPrivateKey)))
+	}
+
+	if s.IsPtyDisabled {
+		options = append(options, ssh.NoPty())
 	}
 
 	if s.Port == 0 {

@@ -74,6 +74,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"AUTHORIZED_KEY_PATH"},
 			},
+			&cli.BoolFlag{
+				Name:    "disable-pty",
+				Usage:   "not allow pty request",
+				Aliases: []string{},
+				EnvVars: []string{"DISABLED_PTY"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -116,6 +122,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				ServerPrivateKey: privateKey,
 				//
 				ClientAuthorizedKey: authorizedKey,
+				//
+				IsPtyDisabled: ctx.Bool("disable-pty"),
 			}
 
 			return s.Start()
