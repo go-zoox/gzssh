@@ -221,12 +221,19 @@ func (s *Server) Start() error {
 	}
 
 	ssh.Handle(func(session ssh.Session) {
+		exitCode := 0
+
 		if s.IsRunInContainer {
-			s.runInContainer(session)
-			return
+			exitCode = s.runInContainer(session)
+		} else {
+			exitCode = s.runInHost(session)
 		}
 
-		s.runInHost(session)
+		user := session.User()
+		remote := session.RemoteAddr().String()
+		logger.Infof("[user: %s][remote: %s] exit(code: %s).", user, remote)
+
+		session.Exit(exitCode)
 	})
 
 	if s.User != "" && s.Pass != "" {

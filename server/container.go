@@ -17,7 +17,7 @@ import (
 	"github.com/go-zoox/logger"
 )
 
-func (s *Server) runInContainer(session ssh.Session) {
+func (s *Server) runInContainer(session ssh.Session) (exitCode int) {
 	env := session.Environ()
 	ptyReq, _, isPty := session.Pty()
 
@@ -70,7 +70,8 @@ func (s *Server) runInContainer(session ssh.Session) {
 		logger.Errorf("failed to run in docker: %v", err)
 	}
 
-	session.Exit(int(status))
+	exitCode = int(status)
+	return
 }
 
 func runInDocker(s *Server, cfg *container.Config, session ssh.Session) (status int64, cleanup func(), err error) {
