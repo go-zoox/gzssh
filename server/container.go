@@ -29,7 +29,7 @@ func (s *Server) runInContainer(session ssh.Session) {
 		Volumes:      make(map[string]struct{}),
 	}
 
-	status, cleanup, err := runInDocker(cfg, session)
+	status, cleanup, err := runInDocker(s, cfg, session)
 	defer cleanup()
 	if err != nil {
 		fmt.Fprintln(session, err)
@@ -39,7 +39,7 @@ func (s *Server) runInContainer(session ssh.Session) {
 	session.Exit(int(status))
 }
 
-func runInDocker(cfg *container.Config, session ssh.Session) (status int64, cleanup func(), err error) {
+func runInDocker(s *Server, cfg *container.Config, session ssh.Session) (status int64, cleanup func(), err error) {
 	var docker *client.Client
 	docker, err = client.NewClientWithOpts()
 	if err != nil {
@@ -86,7 +86,7 @@ func runInDocker(cfg *container.Config, session ssh.Session) (status int64, clea
 			if len(session.Command()) != 0 {
 				_, err = stdcopy.StdCopy(session, session.Stderr(), stream.Reader)
 			} else {
-				_, err = io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with GZSSH (Containered).\n", session.User()))
+				_, err = io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with %s (Containered).\n", session.User(), s.BrandName))
 				status = 0
 			}
 		}

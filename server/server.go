@@ -48,11 +48,18 @@ type Server struct {
 	//  also named Authorized Key
 	ClientAuthorizedKey string
 
-	//
+	// is pty disabled
 	IsPtyDisabled bool
+
+	// brand name for welcome message
+	BrandName string
 }
 
 func (s *Server) Start() error {
+	if s.BrandName == "" {
+		s.BrandName = "GZSSH"
+	}
+
 	if s.Shell == "" {
 		s.Shell = os.Getenv("SHELL")
 		if s.Shell == "" {

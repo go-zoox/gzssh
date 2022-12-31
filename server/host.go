@@ -57,6 +57,6 @@ func (s *Server) runInHost(session ssh.Session) {
 	}
 
 	// 2.2 Disable pseudo-terminal allocation.
-	io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with GZSSH.\n", session.User()))
+	io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with %s.\n", session.User(), s.BrandName))
 	session.Exit(0)
 }
