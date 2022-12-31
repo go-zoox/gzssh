@@ -61,6 +61,8 @@ func (a *Auditor) Write(p []byte) (n int, err error) {
 			} else {
 				a.buf = a.buf[:len(a.buf)-2]
 			}
+		} else if b == 9 {
+			// tab
 		} else {
 			a.buf = append(a.buf, b)
 		}
@@ -90,9 +92,16 @@ type Server struct {
 	//
 	User string
 	Pass string
+
 	//
 	IsRunInContainer bool
-	ContainerImage   string
+	WorkDir          string
+	// Container Image
+	Image string
+	// Container Image Registry User
+	ImageRegistryUser string
+	// Container Image Registry Pass
+	ImageRegistryPass string
 
 	// ServerPrivateKey is the server private key for sign host key
 	//  also named HostKey PEM
@@ -122,6 +131,13 @@ type Server struct {
 
 	//
 	IsAllowAudit bool
+
+	// IsHoneypot works as a honey pot
+	IsHoneypot bool
+	//
+	HoneypotUser string
+	HoneypotUID  int
+	HoneypotGID  int
 
 	//
 	auditor func(user string) *Auditor
@@ -169,6 +185,11 @@ func (s *Server) Start() error {
 
 	if s.OnAudit != nil {
 		s.auditor = CreateDefaultAuditor(s.OnAudit)
+	}
+
+	// if honeypot, force run in container, avoid being attack.
+	if s.IsHoneypot {
+		s.IsRunInContainer = true
 	}
 
 	ssh.Handle(func(session ssh.Session) {
@@ -324,6 +345,11 @@ func (s *Server) Start() error {
 		return fmt.Errorf("port is required")
 	}
 	address := fmt.Sprintf("%s:%d", s.Host, s.Port)
-	logger.Infof("starting ssh server at: %s ...", address)
+	if !s.IsHoneypot {
+		logger.Infof("starting ssh server at: %s ...", address)
+	} else {
+		logger.Infof("[HoneyPot] starting ssh server at: %s ...", address)
+	}
+
 	return ssh.ListenAndServe(address, nil, options...)
 }

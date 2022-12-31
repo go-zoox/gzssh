@@ -44,11 +44,29 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Value:   false,
 			},
 			&cli.StringFlag{
-				Name:    "container-image",
+				Name:    "image",
 				Usage:   "the container image",
 				Aliases: []string{},
 				EnvVars: []string{"CONTAINER_IMAGE"},
 				Value:   "whatwewant/zmicro:v1",
+			},
+			&cli.StringFlag{
+				Name:    "image-registry-user",
+				Usage:   "the user for container image registry",
+				Aliases: []string{},
+				EnvVars: []string{"CONTAINER_IMAGE_REGISTRY_USER"},
+			},
+			&cli.StringFlag{
+				Name:    "image-registry-pass",
+				Usage:   "the password for container image registry",
+				Aliases: []string{},
+				EnvVars: []string{"CONTAINER_IMAGE_REGISTRY_PASS"},
+			},
+			&cli.StringFlag{
+				Name:    "workdir",
+				Usage:   "the workdir",
+				Aliases: []string{},
+				EnvVars: []string{"WORKDIR"},
 			},
 			&cli.StringFlag{
 				Name:    "private-key",
@@ -110,6 +128,30 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"ALLOW_AUDIT"},
 			},
+			&cli.BoolFlag{
+				Name:    "honeypot",
+				Usage:   "work as a honey pot",
+				Aliases: []string{},
+				EnvVars: []string{"HONEYPOT"},
+			},
+			&cli.StringFlag{
+				Name:    "honeypot-user",
+				Usage:   "honeypot username",
+				Aliases: []string{},
+				EnvVars: []string{"HONEYPOT_USER"},
+			},
+			&cli.IntFlag{
+				Name:    "honeypot-uid",
+				Usage:   "honeypot user id",
+				Aliases: []string{},
+				EnvVars: []string{"HONEYPOT_UID"},
+			},
+			&cli.IntFlag{
+				Name:    "honeypot-gid",
+				Usage:   "honeypot group id",
+				Aliases: []string{},
+				EnvVars: []string{"HONEYPOT_GID"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -146,8 +188,11 @@ func RegistryServer(app *cli.MultipleProgram) {
 				// 	return ctx.String("user") == user && ctx.String("pass") == pass
 				// },
 				//
-				IsRunInContainer: ctx.Bool("run-in-container"),
-				ContainerImage:   ctx.String("container-image"),
+				IsRunInContainer:  ctx.Bool("run-in-container"),
+				WorkDir:           ctx.String("workdir"),
+				Image:             ctx.String("image"),
+				ImageRegistryUser: ctx.String("image-registry-user"),
+				ImageRegistryPass: ctx.String("image-registry-pass"),
 				//
 				ServerPrivateKey: privateKey,
 				//
@@ -166,6 +211,11 @@ func RegistryServer(app *cli.MultipleProgram) {
 				IsAllowRemoteForward: ctx.Bool("allow-remote-forward"),
 				//
 				IsAllowAudit: ctx.Bool("allow-audit"),
+				//
+				IsHoneypot:   ctx.Bool("honeypot"),
+				HoneypotUID:  ctx.Int("honeypot-uid"),
+				HoneypotGID:  ctx.Int("honeypot-gid"),
+				HoneypotUser: ctx.String("honeypot-user"),
 			}
 
 			return s.Start()

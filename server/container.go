@@ -2,9 +2,12 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"os"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -22,10 +25,10 @@ func (s *Server) runInContainer(session ssh.Session) {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 	env = append(env, fmt.Sprintf("TERM=%s", ptyReq.Term))
-	env = append(env, fmt.Sprintf("EXECUTE_USER=%s", session.User()))
+	env = append(env, fmt.Sprintf("LOGIN_USER=%s", session.User()))
 
 	cfg := &container.Config{
-		Image:        s.ContainerImage,
+		Image:        s.Image,
 		Cmd:          session.Command(),
 		Env:          env,
 		Tty:          isPty,
@@ -35,6 +38,29 @@ func (s *Server) runInContainer(session ssh.Session) {
 		AttachStderr: true,
 		StdinOnce:    true,
 		Volumes:      make(map[string]struct{}),
+		Hostname:     s.BrandName,
+		WorkingDir:   s.WorkDir,
+		// User:         session.User(),
+		// User: "1000:1000",
+	}
+
+	if s.IsHoneypot {
+		// user := session.User()
+		// cfg.Env = append(cfg.Env, fmt.Sprintf("HOME=/home/%s", user))
+		// cfg.Env = append(cfg.Env, fmt.Sprintf("USER=%s", user))
+		// cfg.WorkingDir = fmt.Sprintf("/home/%s", user)
+
+		if s.HoneypotUser != "" {
+			cfg.User = s.HoneypotUser
+		}
+
+		if s.HoneypotUID != 0 {
+			if s.HoneypotGID != 0 {
+				cfg.User = fmt.Sprintf("%d:%d", s.HoneypotUID, s.HoneypotGID)
+			} else {
+				cfg.User = fmt.Sprintf("%d", s.HoneypotUID)
+			}
+		}
 	}
 
 	status, cleanup, err := runInDocker(s, cfg, session)
@@ -59,6 +85,35 @@ func runInDocker(s *Server, cfg *container.Config, session ssh.Session) (status 
 
 	var res container.ContainerCreateCreatedBody
 	ctx := context.Background()
+
+	if _, _, err = docker.ImageInspectWithRaw(ctx, cfg.Image); err != nil {
+		logger.Infof("[container][image] pulling %s ...", cfg.Image)
+
+		var pullResponse io.ReadCloser
+		imagePullCfg := types.ImagePullOptions{}
+		if s.ImageRegistryUser != "" || s.ImageRegistryPass != "" {
+			authConfig := types.AuthConfig{
+				Username: s.ImageRegistryUser,
+				Password: s.ImageRegistryPass,
+			}
+			var encodedJSON []byte
+			encodedJSON, err = json.Marshal(authConfig)
+			if err != nil {
+				return
+			}
+			imagePullCfg.RegistryAuth = base64.URLEncoding.EncodeToString(encodedJSON)
+		}
+		pullResponse, err = docker.ImagePull(ctx, cfg.Image, imagePullCfg)
+		if err != nil {
+			return
+		}
+		io.Copy(os.Stdout, pullResponse)
+		// defer pullResponse.Close()
+
+		logger.Infof("[container][image] pull %s done.", cfg.Image)
+	}
+
+	logger.Infof("[conatiner] run with image: %s ...", cfg.Image)
 	res, err = docker.ContainerCreate(ctx, cfg, nil, nil, nil, "")
 	if err != nil {
 		return
