@@ -133,7 +133,8 @@ type Server struct {
 	IsAllowAudit bool
 
 	// IsHoneypot works as a honey pot
-	IsHoneypot bool
+	IsHoneypot             bool
+	IsHoneypotAllowAllUser bool
 	//
 	HoneypotUser string
 	HoneypotUID  int
@@ -187,20 +188,6 @@ func (s *Server) Start() error {
 		s.auditor = CreateDefaultAuditor(s.OnAudit)
 	}
 
-	// if honeypot, force run in container, avoid being attack.
-	if s.IsHoneypot {
-		s.IsRunInContainer = true
-	}
-
-	ssh.Handle(func(session ssh.Session) {
-		if s.IsRunInContainer {
-			s.runInContainer(session)
-			return
-		}
-
-		s.runInHost(session)
-	})
-
 	options := []ssh.Option{
 		ssh.Option(func(server *ssh.Server) error {
 			// idle timeout
@@ -220,6 +207,27 @@ func (s *Server) Start() error {
 			return nil
 		}),
 	}
+
+	// if honeypot, force run in container, avoid being attack.
+	if s.IsHoneypot {
+		s.IsRunInContainer = true
+
+		if s.IsHoneypotAllowAllUser {
+			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
+				logger.Infof("[honeypot] user %s from %s ...", ctx.User(), ctx.RemoteAddr().String())
+				return true
+			}))
+		}
+	}
+
+	ssh.Handle(func(session ssh.Session) {
+		if s.IsRunInContainer {
+			s.runInContainer(session)
+			return
+		}
+
+		s.runInHost(session)
+	})
 
 	if s.User != "" && s.Pass != "" {
 		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {

@@ -134,6 +134,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"HONEYPOT"},
 			},
+			&cli.BoolFlag{
+				Name:    "honeypot-allow-all-user",
+				Usage:   "allow user for honeypot",
+				Aliases: []string{},
+				EnvVars: []string{"HONEYPOT_ALLOW_ALL_USER"},
+			},
 			&cli.StringFlag{
 				Name:    "honeypot-user",
 				Usage:   "honeypot username",
@@ -212,10 +218,11 @@ func RegistryServer(app *cli.MultipleProgram) {
 				//
 				IsAllowAudit: ctx.Bool("allow-audit"),
 				//
-				IsHoneypot:   ctx.Bool("honeypot"),
-				HoneypotUID:  ctx.Int("honeypot-uid"),
-				HoneypotGID:  ctx.Int("honeypot-gid"),
-				HoneypotUser: ctx.String("honeypot-user"),
+				IsHoneypot:             ctx.Bool("honeypot"),
+				IsHoneypotAllowAllUser: ctx.Bool("honeypot-allow-all-user"),
+				HoneypotUID:            ctx.Int("honeypot-uid"),
+				HoneypotGID:            ctx.Int("honeypot-gid"),
+				HoneypotUser:           ctx.String("honeypot-user"),
 			}
 
 			return s.Start()
