@@ -124,7 +124,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 		return
 	}
 
-	status = 255
+	status = 0
 	cleanup = func() {}
 
 	var res container.ContainerCreateCreatedBody
@@ -203,7 +203,6 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 				_, err = stdcopy.StdCopy(session, session.Stderr(), stream.Reader)
 			} else {
 				_, err = io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with %s (Containered).\n", session.User(), s.BrandName))
-				status = 0
 			}
 		}
 
@@ -250,6 +249,15 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	case result := <-resultC:
 		status = result.StatusCode
 	case err = <-outputErr:
+		// wait command result 1 second for status code
+		select {
+		case <-time.After(1 * time.Second):
+			return
+		case err = <-errC:
+			return
+		case result := <-resultC:
+			status = result.StatusCode
+		}
 		return
 	}
 
