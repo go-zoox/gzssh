@@ -114,7 +114,7 @@ type Server struct {
 	//
 	IsRunInContainer              bool
 	IsContainerAutoRemoveWhenExit bool
-	IsContainerAllowRecovery      bool
+	IsContainerRecoveryAllowed    bool
 	IsContainerRecoveryDisabled   bool
 	WorkDir                       string
 	// Container Image
@@ -276,7 +276,7 @@ func (s *Server) Start() error {
 	if s.IsHoneypot {
 		s.IsRunInContainer = true
 		s.IsContainerAutoRemoveWhenExit = false
-		s.IsContainerAllowRecovery = true
+		// s.IsContainerAllowRecovery = true
 		s.IsAllowAudit = true
 
 		if s.IsHoneypotAllowAllUser {
@@ -289,7 +289,7 @@ func (s *Server) Start() error {
 	}
 
 	if s.IsContainerRecoveryDisabled {
-		s.IsContainerAllowRecovery = false
+		s.IsContainerRecoveryAllowed = false
 	}
 
 	if s.IsAllowAudit {
@@ -459,7 +459,7 @@ func (s *Server) Start() error {
 			logger.Infof("[runtime] mode: %s", "host")
 		} else {
 			logger.Infof("[runtime] mode: %s", "container")
-			logger.Infof("[runtime] container recovery: %v", s.IsContainerAllowRecovery)
+			logger.Infof("[runtime] container recovery: %v", s.IsContainerRecoveryAllowed)
 			logger.Infof("[runtime] auto remove container: %v", s.IsContainerAutoRemoveWhenExit)
 		}
 		if s.WorkDir != "" {

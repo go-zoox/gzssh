@@ -120,7 +120,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 
 func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, session ssh.Session, auditor *Auditor) (status int64, cleanup func(), err error) {
 	containerName := fmt.Sprintf("%s_%s_%d_%s", "gzssh", s.Version, time.Now().UnixMilli(), session.Context().SessionID())
-	if s.IsContainerAllowRecovery {
+	if s.IsContainerRecoveryAllowed {
 		user := session.User()
 		remote := session.RemoteAddr().String()
 
@@ -173,7 +173,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	logger.Infof("[conatiner] run with image: %s ...", cfg.Image)
-	if s.IsContainerAllowRecovery {
+	if s.IsContainerRecoveryAllowed {
 		// var response types.ContainerJSON
 		response, errx := docker.ContainerInspect(ctx, containerName)
 		if errx != nil {

@@ -258,7 +258,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				//
 				IsRunInContainer:              ctx.Bool("run-in-container"),
 				IsContainerAutoRemoveWhenExit: ctx.Bool("container-auto-remove-when-exit"),
-				IsContainerAllowRecovery:      ctx.Bool("allow-container-recovery"),
+				IsContainerRecoveryAllowed:    ctx.Bool("allow-container-recovery"),
 				IsContainerRecoveryDisabled:   ctx.Bool("disable-container-recovery"),
 				WorkDir:                       ctx.String("workdir"),
 				Image:                         ctx.String("image"),
