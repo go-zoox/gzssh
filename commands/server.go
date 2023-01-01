@@ -283,10 +283,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				MaxTimeout:  ctx.Int("max-timeout"),
 				//
 				ServerEchoVersion: ctx.String("server-echo-version"),
-			}
-
-			if s.ServerEchoVersion == "" && ctx.Bool("masquerade-as-openssh") {
-				s.ServerEchoVersion = "OpenSSH_8.2p1 Ubuntu-4ubuntu0.4"
+				//
+				IsMasqueradeAsOpenSSH: ctx.Bool("masquerade-as-openssh"),
 			}
 
 			return s.Start()

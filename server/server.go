@@ -146,6 +146,9 @@ type Server struct {
 	//		Ubuntu 22.04 => OpenSSH_8.2p1 Ubuntu-4ubuntu0.4 (full: SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.4)
 	ServerEchoVersion string
 
+	// IsMasqueradeAsOpenSSH will set Server Echo Version as OpenSSH if ServerEchoVersion not set
+	IsMasqueradeAsOpenSSH bool
+
 	//
 	IsAllowSFTP bool
 
@@ -222,11 +225,19 @@ func (s *Server) Start() error {
 	options := []ssh.Option{
 		ssh.Option(func(server *ssh.Server) error {
 			if server.Version == "" {
-				if s.ServerEchoVersion != "" {
-					server.Version = s.ServerEchoVersion
-				} else {
-					server.Version = fmt.Sprintf("GzSSH_%s", s.Version)
+				if s.IsHoneypot {
+					s.IsMasqueradeAsOpenSSH = true
 				}
+
+				if s.ServerEchoVersion == "" && s.IsMasqueradeAsOpenSSH {
+					s.ServerEchoVersion = "OpenSSH_8.2p1 Ubuntu-4ubuntu0.4"
+				}
+
+				if s.ServerEchoVersion == "" {
+					s.ServerEchoVersion = fmt.Sprintf("GzSSH_%s", s.Version)
+				}
+
+				server.Version = s.ServerEchoVersion
 			}
 
 			server.ServerConfigCallback = func(ctx ssh.Context) *gossh.ServerConfig {
