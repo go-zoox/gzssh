@@ -56,7 +56,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "Container allow recovery from stopped",
 				Aliases: []string{},
 				EnvVars: []string{"CONTAINER_ALLOW_RECOVERY"},
-				Value:   true,
+				Value:   false,
 			},
 			&cli.StringFlag{
 				Name:    "image",
