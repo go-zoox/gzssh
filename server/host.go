@@ -49,7 +49,7 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 		go io.Copy(session, f)       // stdout
 
 		cmd.Wait()
-		return 0, nil
+		return cmd.ProcessState.ExitCode(), nil
 	}
 
 	// 2. non-interactive => No PTY Requested
@@ -74,11 +74,11 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			io.WriteString(session, err.Error()+"\n")
-			return 1, err
+			return cmd.ProcessState.ExitCode(), err
 		}
 
 		io.WriteString(session, string(output)+"\n")
-		return 0, nil
+		return cmd.ProcessState.ExitCode(), nil
 	}
 
 	// 2.2 Disable pseudo-terminal allocation.
