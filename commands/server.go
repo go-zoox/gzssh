@@ -24,6 +24,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "server port",
 				Aliases: []string{"p"},
 				EnvVars: []string{"PORT"},
+				Value:   22,
 			},
 			&cli.StringFlag{
 				Name:    "user",
