@@ -116,7 +116,10 @@ type Server struct {
 	IsContainerAutoRemoveWhenExitDisabled bool
 	IsContainerRecoveryAllowed            bool
 	IsContainerRecoveryDisabled           bool
-	WorkDir                               string
+	// ContainerMaxAge is when container recovery is allowed, recoveried container max age
+	//  unit: seconds, default: 3600 (1h)
+	ContainerMaxAge int
+	WorkDir         string
 	// Container Image
 	Image string
 	// Container Image Registry User
@@ -445,9 +448,14 @@ func (s *Server) Start() error {
 		}))
 	}
 
+	if s.ContainerMaxAge == 0 {
+		s.ContainerMaxAge = 3600
+	}
+
 	if s.Port == 0 {
 		s.Port = 22
 	}
+
 	address := fmt.Sprintf("%s:%d", s.Host, s.Port)
 
 	// @TODO echo server info
@@ -459,8 +467,12 @@ func (s *Server) Start() error {
 			logger.Infof("[runtime] mode: %s", "host")
 		} else {
 			logger.Infof("[runtime] mode: %s", "container")
-			logger.Infof("[runtime] container recovery: %v", s.IsContainerRecoveryAllowed)
 			logger.Infof("[runtime] auto remove container: %v", !s.IsContainerAutoRemoveWhenExitDisabled)
+
+			logger.Infof("[runtime] container recovery: %v", s.IsContainerRecoveryAllowed)
+			if s.IsContainerRecoveryAllowed {
+				logger.Infof("[runtime] container max age: %ds", s.ContainerMaxAge)
+			}
 		}
 		if s.WorkDir != "" {
 			logger.Infof("[runtime] workdir: %s", s.WorkDir)

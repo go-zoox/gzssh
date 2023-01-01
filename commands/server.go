@@ -62,6 +62,14 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"DISABLED_CONTAINER_RECOVERY"},
 			},
+			&cli.IntFlag{
+				Name:    "container-max-age",
+				Usage:   "when container recovery is allowed, recoveried container max age, unit: seconds",
+				Aliases: []string{},
+				EnvVars: []string{"CONTAINER_MAX_AGE"},
+				Value:   3600,
+			},
+
 			&cli.StringFlag{
 				Name:    "image",
 				Usage:   "the container image",
@@ -260,6 +268,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				IsContainerAutoRemoveWhenExitDisabled: ctx.Bool("disable-container-auto-remove-when-exit"),
 				IsContainerRecoveryAllowed:            ctx.Bool("allow-container-recovery"),
 				IsContainerRecoveryDisabled:           ctx.Bool("disable-container-recovery"),
+				ContainerMaxAge:                       ctx.Int("container-max-age"),
 				WorkDir:                               ctx.String("workdir"),
 				Image:                                 ctx.String("image"),
 				ImageRegistryUser:                     ctx.String("image-registry-user"),

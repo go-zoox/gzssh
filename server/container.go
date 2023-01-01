@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/dustin/go-humanize"
 	"github.com/gliderlabs/ssh"
+	"github.com/go-zoox/datetime"
 	"github.com/go-zoox/logger"
 )
 
@@ -193,6 +194,15 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 			if response.Config.Tty != cfg.Tty {
 				// docker.ContainerUpdate()
 
+				if response.State.Running {
+					logger.Infof("[conatiner][tty change]] stop running: %s ...", containerName)
+					err = docker.ContainerStop(ctx, containerID, nil)
+					if err != nil {
+						status = 1
+						return
+					}
+				}
+
 				// cannot update container info => remove old and create new
 				logger.Infof("[conatiner][tty change] remove old: %s ...", containerName)
 				docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
@@ -207,7 +217,59 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 
 				containerID = res.ID
 			} else {
-				logger.Infof("[conatiner] recovery old container: %s ...", containerName)
+				var containerCreatedAt *datetime.DateTime
+				// response.Created: 2023-01-01T07:07:01.034325879Z
+				// containerCreatedAt, err = datetime.FromPattern("2006-01-02T15:04:05.000Z", response.Created)
+				// https://stackoverflow.com/questions/25845172/parsing-rfc-3339-iso-8601-date-time-string-in-go
+				var responseCreatedAt time.Time
+				now := datetime.FromTime(time.Now())
+
+				// layout := "2006-01-02T15:04:05.000000000Z"
+				layout := time.RFC3339
+				responseCreatedAt, err = time.Parse(layout, response.Created)
+				time.LoadLocation("")
+
+				if err != nil {
+					status = 1
+					return
+				}
+				containerCreatedAt = datetime.FromTime(responseCreatedAt.In(now.Location()))
+
+				isContainerExpired := !containerCreatedAt.Add(time.Duration(s.ContainerMaxAge) * time.Second).After(now)
+				if isContainerExpired {
+					fmt.Println("maxAge:", s.ContainerMaxAge)
+					fmt.Println("create:", containerCreatedAt.Format("YYYY-MM-DD HH:mm:ss"))
+					fmt.Println("create + maxAge:", containerCreatedAt.Add(time.Duration(s.ContainerMaxAge)*time.Second).Format("YYYY-MM-DD HH:mm:ss"))
+					fmt.Println("now:", now, now.Location())
+
+					if response.State.Running {
+						logger.Infof("[conatiner][alive: expired] stop running: %s ...", containerName)
+						err = docker.ContainerStop(ctx, containerID, nil)
+						if err != nil {
+							status = 1
+							return
+						}
+					}
+
+					logger.Infof("[conatiner][alive: expired] remove old: %s ...", containerName)
+					err = docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
+					if err != nil {
+						status = 1
+						return
+					}
+
+					logger.Infof("[conatiner][alive: expired] create new container: %s ...", containerName)
+					var res container.ContainerCreateCreatedBody
+					res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, containerName)
+					if err != nil {
+						status = 1
+						return
+					}
+
+					containerID = res.ID
+				} else {
+					logger.Infof("[conatiner] recovery old container: %s ...", containerName)
+				}
 			}
 
 			// err = docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{})

@@ -8,6 +8,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/go-zoox/cli v1.0.10
+	github.com/go-zoox/datetime v1.1.0
 	github.com/go-zoox/fetch v1.5.5
 	github.com/go-zoox/fs v1.3.0
 	github.com/go-zoox/logger v1.3.1
@@ -27,7 +28,6 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-zoox/chalk v1.0.1 // indirect
 	github.com/go-zoox/core-utils v1.0.13 // indirect
-	github.com/go-zoox/datetime v1.1.0 // indirect
 	github.com/go-zoox/uuid v0.0.1 // indirect
 	github.com/goccy/go-yaml v1.9.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
