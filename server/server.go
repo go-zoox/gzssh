@@ -41,9 +41,11 @@ func CreateDefaultOnAuthentication(defaultUser, defaultPass string, isShowUserPa
 type Auditor struct {
 	io.Writer
 
-	Print func(user string, isPty bool, command string)
+	Print func(user string, remote string, isPty bool, command string)
 
 	User string
+
+	Remote string
 
 	IsPty bool
 
@@ -58,7 +60,7 @@ func (a *Auditor) Write(p []byte) (n int, err error) {
 		if b == 13 {
 			command := strings.TrimSpace(string(a.buf))
 			if len(command) != 0 {
-				a.Print(a.User, a.IsPty, command)
+				a.Print(a.User, a.Remote, a.IsPty, command)
 			}
 
 			a.buf = nil
@@ -82,12 +84,13 @@ func (a *Auditor) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func CreateDefaultAuditor(auditFn func(user string, isPty bool, command string)) func(user string, isPty bool) *Auditor {
-	return func(user string, isPty bool) *Auditor {
+func CreateDefaultAuditor(auditFn func(user string, remote string, isPty bool, command string)) func(user string, remote string, isPty bool) *Auditor {
+	return func(user string, remote string, isPty bool) *Auditor {
 		return &Auditor{
-			Print: auditFn,
-			User:  user,
-			IsPty: isPty,
+			Print:  auditFn,
+			User:   user,
+			Remote: remote,
+			IsPty:  isPty,
 		}
 	}
 }
@@ -103,7 +106,7 @@ type Server struct {
 	MaxTimeout int
 	//
 	OnAuthentication func(remote, version, user, pass string) bool
-	OnAudit          func(user string, isPty bool, command string)
+	OnAudit          func(user string, remote string, isPty bool, command string)
 	//
 	User string
 	Pass string
@@ -174,7 +177,7 @@ type Server struct {
 	CPUPercent int
 
 	//
-	auditor func(user string, isPty bool) *Auditor
+	auditor func(user string, remote string, isPty bool) *Auditor
 }
 
 func (s *Server) Start() error {
@@ -211,8 +214,8 @@ func (s *Server) Start() error {
 
 	if s.IsAllowAudit {
 		if s.OnAudit == nil {
-			s.OnAudit = func(user string, isPty bool, command string) {
-				logger.Infof("[audit][user: %s][pty: %v] %s", user, isPty, command)
+			s.OnAudit = func(user string, remote string, isPty bool, command string) {
+				logger.Infof("[audit][user: %s][remote: %s][pty: %v] %s", user, remote, isPty, command)
 			}
 		}
 	}

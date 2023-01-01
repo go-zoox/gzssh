@@ -13,9 +13,10 @@ import (
 func (s *Server) runInHost(session ssh.Session) (int, error) {
 	ptyReq, windowCh, isPty := session.Pty()
 	user := session.User()
+	remote := session.RemoteAddr().String()
 	var auditor *Auditor
 	if s.auditor != nil {
-		auditor = s.auditor(user, isPty)
+		auditor = s.auditor(user, remote, isPty)
 	}
 
 	// 1. interfactive

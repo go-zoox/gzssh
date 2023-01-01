@@ -22,12 +22,13 @@ import (
 
 func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	user := session.User()
+	remote := session.RemoteAddr().String()
 	env := session.Environ()
 	ptyReq, _, isPty := session.Pty()
 
 	var auditor *Auditor
 	if s.auditor != nil {
-		auditor = s.auditor(user, isPty)
+		auditor = s.auditor(user, remote, isPty)
 	}
 
 	for k, v := range s.Environment {
