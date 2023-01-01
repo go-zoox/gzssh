@@ -431,21 +431,43 @@ func (s *Server) Start() error {
 
 	// @TODO echo server info
 	options = append(options, func(session *ssh.Server) error {
+		logger.Infof("[runtime] brand: %s", s.BrandName)
 		logger.Infof("[runtime] gzssh: %s", s.Version)
-		logger.Infof("[runtime] ssh: SSH-2.0-%s", s.ServerEchoVersion)
+		logger.Infof("[runtime] server version: SSH-2.0-%s", s.ServerEchoVersion)
 		if !s.IsRunInContainer {
 			logger.Infof("[runtime] mode: %s", "host")
 		} else {
 			logger.Infof("[runtime] mode: %s", "container")
 		}
+		if s.WorkDir != "" {
+			logger.Infof("[runtime] workdir: %s", s.WorkDir)
+		}
 		if s.AuthServer != "" {
 			logger.Infof("[runtime] auth server: %s", s.AuthServer)
+		}
+		if s.IsAllowSFTP {
+			logger.Infof("[runtime] sftp: %v", true)
+		}
+		if s.IsAllowRemoteForward {
+			logger.Infof("[runtime] remote port forward: %v", true)
+		}
+		if s.IsAllowAudit {
+			logger.Infof("[runtime] audit: %v", true)
+		}
+		if s.Memory != "" {
+			logger.Infof("[runtime] audit: %s", s.Memory)
+		}
+		if s.CPUCount != 0 {
+			logger.Infof("[runtime] cpu: %d", s.CPUCount)
+		}
+		if s.CPUPercent != 0 {
+			logger.Infof("[runtime] cpu percent: %d", s.CPUPercent)
 		}
 		if s.IsHoneypot {
 			logger.Infof("[runtime] honeypot: %v", true)
 		}
 
-		logger.Infof("[runtime]starting ssh server at: %s ...", address)
+		logger.Infof("[runtime] starting ssh server at: %s ...", address)
 		return nil
 	})
 
