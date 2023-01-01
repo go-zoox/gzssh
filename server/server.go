@@ -115,6 +115,7 @@ type Server struct {
 	IsRunInContainer              bool
 	IsContainerAutoRemoveWhenExit bool
 	IsContainerAllowRecovery      bool
+	IsContainerDisableRecovery    bool
 	WorkDir                       string
 	// Container Image
 	Image string
@@ -285,6 +286,10 @@ func (s *Server) Start() error {
 				return true
 			}))
 		}
+	}
+
+	if s.IsContainerDisableRecovery {
+		s.IsContainerAllowRecovery = false
 	}
 
 	if s.IsAllowAudit {
