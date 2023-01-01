@@ -187,8 +187,29 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 
 			containerID = res.ID
 		} else {
-			logger.Infof("[conatiner] recovery old container: %s ...", containerName)
 			containerID = response.ID
+
+			// @TODO if tty change, should update
+			if response.Config.Tty != cfg.Tty {
+				// docker.ContainerUpdate()
+
+				// cannot update container info => remove old and create new
+				logger.Infof("[conatiner][tty change] remove old: %s ...", containerName)
+				docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
+
+				logger.Infof("[conatiner][tty change] create new container: %s ...", containerName)
+				var res container.ContainerCreateCreatedBody
+				res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, containerName)
+				if err != nil {
+					status = 1
+					return
+				}
+
+				containerID = res.ID
+			} else {
+				logger.Infof("[conatiner] recovery old container: %s ...", containerName)
+			}
+
 			// err = docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 			// if err != nil {
 			// 	status = 1
