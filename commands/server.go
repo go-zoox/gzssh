@@ -196,6 +196,18 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"MAX_TIMEOUT"},
 			},
+			&cli.StringFlag{
+				Name:    "server-echo-version",
+				Usage:   "the ssh server echo version, prefix with SSH-2.0-",
+				Aliases: []string{},
+				EnvVars: []string{"SERVER_ECHO_VERSION"},
+			},
+			&cli.BoolFlag{
+				Name:    "masquerade-as-openssh",
+				Usage:   "Masquerade as a openssh server",
+				Aliases: []string{},
+				EnvVars: []string{"MASQUERADE_AS_OPENSSH"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -269,6 +281,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				//
 				IdleTimeout: ctx.Int("idle-timeout"),
 				MaxTimeout:  ctx.Int("max-timeout"),
+				//
+				ServerEchoVersion: ctx.String("server-echo-version"),
+			}
+
+			if s.ServerEchoVersion == "" && ctx.Bool("masquerade-as-openssh") {
+				s.ServerEchoVersion = "OpenSSH_8.2p1 Ubuntu-4ubuntu0.4"
 			}
 
 			return s.Start()

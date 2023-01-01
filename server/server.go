@@ -12,24 +12,25 @@ import (
 	"github.com/go-zoox/fetch"
 	"github.com/go-zoox/gzssh/server/sftp"
 	"github.com/go-zoox/logger"
+	gossh "golang.org/x/crypto/ssh"
 )
 
-func CreateDefaultOnAuthentication(defaultUser, defaultPass string, isShowUserPass bool) func(remote, user, pass string) bool {
-	return func(remote, user, pass string) bool {
-		logger.Infof("[user: %s][remote: %s] try to connect ...", user, remote)
+func CreateDefaultOnAuthentication(defaultUser, defaultPass string, isShowUserPass bool) func(remote, version, user, pass string) bool {
+	return func(remote, version, user, pass string) bool {
+		// logger.Infof("[user: %s][remote: %s] try to connect ...", user, remote)
 
 		isOK := user == defaultUser && pass == defaultPass
 		if !isOK {
 			if isShowUserPass {
-				logger.Infof("[user: %s][remote: %s] failed to authenticate(user: %s, pass: %s)", user, remote, user, pass)
+				logger.Infof("[user: %s][remote: %s][version: %s] failed to authenticate(user: %s, pass: %s)", user, remote, version, user, pass)
 			} else {
-				logger.Infof("[user: %s][remote: %s] failed to authenticate(pass not correct)", user, remote)
+				logger.Infof("[user: %s][remote: %s][version: %s] failed to authenticate(pass not correct)", user, remote, version)
 			}
 		} else {
 			if isShowUserPass {
-				logger.Infof("[user: %s][remote: %s] succeed to authenticate(user: %s, pass: %s)", user, remote, user, pass)
+				logger.Infof("[user: %s][remote: %s][version: %s] succeed to authenticate(user: %s, pass: %s)", user, remote, version, user, pass)
 			} else {
-				logger.Infof("[user: %s][remote: %s] succeed to authenticate.", user, remote)
+				logger.Infof("[user: %s][remote: %s][version: %s] succeed to authenticate.", user, remote, version)
 			}
 
 		}
@@ -102,7 +103,7 @@ type Server struct {
 	// MaxTimeout, unit: seconds
 	MaxTimeout int
 	//
-	OnAuthentication func(remote, user, pass string) bool
+	OnAuthentication func(remote, version, user, pass string) bool
 	OnAudit          func(user string, isPty bool, command string)
 	//
 	User string
@@ -136,8 +137,14 @@ type Server struct {
 	// AuthServer is used for verify user/pass, instead of user/pass
 	AuthServer string
 
-	//
+	// Version is the GzSSH Version
 	Version string
+
+	// ServerEchoVersion is the ssh server echo version, prefix with SSH-2.0-
+	//	such as
+	//		MacOS 13 => OpenSSH_8.6 (full: SSH-2.0-OpenSSH_8.6)
+	//		Ubuntu 22.04 => OpenSSH_8.2p1 Ubuntu-4ubuntu0.4 (full: SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.4)
+	ServerEchoVersion string
 
 	//
 	IsAllowSFTP bool
@@ -214,6 +221,22 @@ func (s *Server) Start() error {
 
 	options := []ssh.Option{
 		ssh.Option(func(server *ssh.Server) error {
+			if server.Version == "" {
+				if s.ServerEchoVersion != "" {
+					server.Version = s.ServerEchoVersion
+				} else {
+					server.Version = fmt.Sprintf("GzSSH_%s", s.Version)
+				}
+			}
+
+			server.ServerConfigCallback = func(ctx ssh.Context) *gossh.ServerConfig {
+				cfg := &gossh.ServerConfig{}
+
+				// cfg.ServerVersion = "SSH-2.0-OpenSSH_8.6"
+
+				return cfg
+			}
+
 			// idle timeout
 			server.IdleTimeout = time.Duration(s.IdleTimeout) * time.Second
 
@@ -282,7 +305,7 @@ func (s *Server) Start() error {
 
 	if s.User != "" && s.Pass != "" {
 		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-			return s.OnAuthentication(ctx.RemoteAddr().String(), ctx.User(), pass)
+			return s.OnAuthentication(ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
 		}))
 	} else if s.AuthServer != "" {
 		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
@@ -338,11 +361,12 @@ func (s *Server) Start() error {
 			remote := ctx.RemoteAddr()
 			user := ctx.User()
 			isOK := ssh.KeysEqual(key, publicKeyPEM)
-			logger.Infof("[user: %s][remote: %s] try to connect ...", user, remote)
+			// logger.Infof("[user: %s][remote: %s][version: %s] try to connect ...", user, remote, ctx.ClientVersion())
+			fmt.Println(ctx.Permissions())
 			if !isOK {
-				logger.Infof("[user: %s][remote: %s] failed to authenticate.", user, remote)
+				logger.Infof("[user: %s][remote: %s][version: %s] failed to authenticate.", user, remote, ctx.ClientVersion())
 			} else {
-				logger.Infof("[user: %s][remote: %s] succeed to authenticate.", user, remote)
+				logger.Infof("[user: %s][remote: %s][version: %s] succeed to authenticate.", user, remote, ctx.ClientVersion())
 			}
 
 			return isOK
@@ -401,14 +425,9 @@ func (s *Server) Start() error {
 	}
 
 	if s.Port == 0 {
-		return fmt.Errorf("port is required")
+		s.Port = 22
 	}
 	address := fmt.Sprintf("%s:%d", s.Host, s.Port)
-	if !s.IsHoneypot {
-		logger.Infof("starting ssh server at: %s ...", address)
-	} else {
-		logger.Infof("[HoneyPot] starting ssh server at: %s ...", address)
-	}
 
 	return ssh.ListenAndServe(address, nil, options...)
 }
