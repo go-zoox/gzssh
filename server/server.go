@@ -22,17 +22,16 @@ func CreateDefaultOnAuthentication(defaultUser, defaultPass string, isShowUserPa
 		isOK := user == defaultUser && pass == defaultPass
 		if !isOK {
 			if isShowUserPass {
-				logger.Infof("[user: %s][remote: %s][version: %s] failed to authenticate(user: %s, pass: %s)", user, remote, version, user, pass)
+				logger.Infof("[auth: password][user: %s][remote: %s][version: %s] failed to authenticate(user: %s, pass: %s)", user, remote, version, user, pass)
 			} else {
-				logger.Infof("[user: %s][remote: %s][version: %s] failed to authenticate(pass not correct)", user, remote, version)
+				logger.Infof("[auth: password][user: %s][remote: %s][version: %s] failed to authenticate(pass not correct)", user, remote, version)
 			}
 		} else {
 			if isShowUserPass {
-				logger.Infof("[user: %s][remote: %s][version: %s] succeed to authenticate(user: %s, pass: %s)", user, remote, version, user, pass)
+				logger.Infof("[auth: password][user: %s][remote: %s][version: %s] succeed to authenticate(user: %s, pass: %s)", user, remote, version, user, pass)
 			} else {
-				logger.Infof("[user: %s][remote: %s][version: %s] succeed to authenticate.", user, remote, version)
+				logger.Infof("[auth: password][user: %s][remote: %s][version: %s] succeed to authenticate.", user, remote, version)
 			}
-
 		}
 
 		return isOK
@@ -287,7 +286,8 @@ func (s *Server) Start() error {
 
 		if s.IsHoneypotAllowAllUser {
 			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-				logger.Infof("[honeypot] user %s from %s (user: %s, pass: %s)...", ctx.User(), ctx.RemoteAddr().String(), ctx.User(), pass)
+				logger.Infof("[auth: password] honeypot user %s ...", ctx.User())
+				logger.Infof("[auth: password][user: %s][remote %s][version: %s] (user: %s, pass: %s)...", ctx.User(), ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
 				return true
 			}))
 		}
@@ -373,11 +373,10 @@ func (s *Server) Start() error {
 			user := ctx.User()
 			isOK := ssh.KeysEqual(key, publicKeyPEM)
 			// logger.Infof("[user: %s][remote: %s][version: %s] try to connect ...", user, remote, ctx.ClientVersion())
-			fmt.Println(ctx.Permissions())
 			if !isOK {
-				logger.Infof("[user: %s][remote: %s][version: %s] failed to authenticate.", user, remote, ctx.ClientVersion())
+				logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] failed to authenticate.", user, remote, ctx.ClientVersion())
 			} else {
-				logger.Infof("[user: %s][remote: %s][version: %s] succeed to authenticate.", user, remote, ctx.ClientVersion())
+				logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] succeed to authenticate.", user, remote, ctx.ClientVersion())
 			}
 
 			return isOK
