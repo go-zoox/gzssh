@@ -229,7 +229,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	cleanup = func() {
-		if !s.IsContainerAutoRemoveWhenExit {
+		if s.IsContainerAutoRemoveWhenExitDisabled {
 			docker.ContainerStop(ctx, containerID, nil)
 		} else {
 			docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
@@ -248,7 +248,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	cleanup = func() {
-		if !s.IsContainerAutoRemoveWhenExit {
+		if s.IsContainerAutoRemoveWhenExitDisabled {
 			docker.ContainerStop(ctx, containerID, nil)
 		} else {
 			docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})

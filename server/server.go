@@ -112,11 +112,11 @@ type Server struct {
 	Pass string
 
 	//
-	IsRunInContainer              bool
-	IsContainerAutoRemoveWhenExit bool
-	IsContainerRecoveryAllowed    bool
-	IsContainerRecoveryDisabled   bool
-	WorkDir                       string
+	IsRunInContainer                      bool
+	IsContainerAutoRemoveWhenExitDisabled bool
+	IsContainerRecoveryAllowed            bool
+	IsContainerRecoveryDisabled           bool
+	WorkDir                               string
 	// Container Image
 	Image string
 	// Container Image Registry User
@@ -275,7 +275,7 @@ func (s *Server) Start() error {
 	// if honeypot, force run in container, avoid being attack.
 	if s.IsHoneypot {
 		s.IsRunInContainer = true
-		s.IsContainerAutoRemoveWhenExit = false
+		s.IsContainerAutoRemoveWhenExitDisabled = true
 		// s.IsContainerAllowRecovery = true
 		s.IsAllowAudit = true
 
@@ -460,7 +460,7 @@ func (s *Server) Start() error {
 		} else {
 			logger.Infof("[runtime] mode: %s", "container")
 			logger.Infof("[runtime] container recovery: %v", s.IsContainerRecoveryAllowed)
-			logger.Infof("[runtime] auto remove container: %v", s.IsContainerAutoRemoveWhenExit)
+			logger.Infof("[runtime] auto remove container: %v", !s.IsContainerAutoRemoveWhenExitDisabled)
 		}
 		if s.WorkDir != "" {
 			logger.Infof("[runtime] workdir: %s", s.WorkDir)

@@ -44,7 +44,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"RUN_IN_CONTAINER"},
 			},
 			&cli.BoolFlag{
-				Name:    "container-auto-remove-when-exit",
+				Name:    "disable-container-auto-remove-when-exit",
 				Usage:   "Container auto remove when exit",
 				Aliases: []string{},
 				EnvVars: []string{"CONTAINER_AUTO_REMOVE_WHEN_EXIT"},
@@ -256,14 +256,14 @@ func RegistryServer(app *cli.MultipleProgram) {
 				// 	return ctx.String("user") == user && ctx.String("pass") == pass
 				// },
 				//
-				IsRunInContainer:              ctx.Bool("run-in-container"),
-				IsContainerAutoRemoveWhenExit: ctx.Bool("container-auto-remove-when-exit"),
-				IsContainerRecoveryAllowed:    ctx.Bool("allow-container-recovery"),
-				IsContainerRecoveryDisabled:   ctx.Bool("disable-container-recovery"),
-				WorkDir:                       ctx.String("workdir"),
-				Image:                         ctx.String("image"),
-				ImageRegistryUser:             ctx.String("image-registry-user"),
-				ImageRegistryPass:             ctx.String("image-registry-pass"),
+				IsRunInContainer:                      ctx.Bool("run-in-container"),
+				IsContainerAutoRemoveWhenExitDisabled: ctx.Bool("disable-container-auto-remove-when-exit"),
+				IsContainerRecoveryAllowed:            ctx.Bool("allow-container-recovery"),
+				IsContainerRecoveryDisabled:           ctx.Bool("disable-container-recovery"),
+				WorkDir:                               ctx.String("workdir"),
+				Image:                                 ctx.String("image"),
+				ImageRegistryUser:                     ctx.String("image-registry-user"),
+				ImageRegistryPass:                     ctx.String("image-registry-pass"),
 				//
 				ServerPrivateKey: privateKey,
 				//
