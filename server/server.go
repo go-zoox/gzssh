@@ -429,5 +429,25 @@ func (s *Server) Start() error {
 	}
 	address := fmt.Sprintf("%s:%d", s.Host, s.Port)
 
+	// @TODO echo server info
+	options = append(options, func(session *ssh.Server) error {
+		logger.Infof("[runtime] gzssh: %s", s.Version)
+		logger.Infof("[runtime] ssh: SSH-2.0-%s", s.ServerEchoVersion)
+		if !s.IsRunInContainer {
+			logger.Infof("[runtime] mode: %s", "host")
+		} else {
+			logger.Infof("[runtime] mode: %s", "container")
+		}
+		if s.AuthServer != "" {
+			logger.Infof("[runtime] auth server: %s", s.AuthServer)
+		}
+		if s.IsHoneypot {
+			logger.Infof("[runtime] honeypot: %v", true)
+		}
+
+		logger.Infof("[runtime]starting ssh server at: %s ...", address)
+		return nil
+	})
+
 	return ssh.ListenAndServe(address, nil, options...)
 }
