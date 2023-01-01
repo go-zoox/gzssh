@@ -44,11 +44,16 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"RUN_IN_CONTAINER"},
 			},
 			&cli.BoolFlag{
-				Name:    "disable-container-auto-remove-when-exit",
-				Usage:   "Container auto remove when exit",
+				Name:    "disable-container-auto-cleanup-when-exit",
+				Usage:   "disable container auto cleanup when exit, maybe destroy or stop container, default cleanup strategy is destroy container",
 				Aliases: []string{},
-				EnvVars: []string{"CONTAINER_AUTO_REMOVE_WHEN_EXIT"},
-				Value:   true,
+				EnvVars: []string{"DISABLE_CONTAINER_AUTO_CLEANUP_WHEN_EXIT"},
+			},
+			&cli.BoolFlag{
+				Name:    "disable-container-auto-remove-when-exit",
+				Usage:   "disable container auto remove(destory) when exit",
+				Aliases: []string{},
+				EnvVars: []string{"DISABLE_CONTAINER_AUTO_REMOVE_WHEN_EXIT"},
 			},
 			&cli.BoolFlag{
 				Name:    "allow-container-recovery",
@@ -264,15 +269,16 @@ func RegistryServer(app *cli.MultipleProgram) {
 				// 	return ctx.String("user") == user && ctx.String("pass") == pass
 				// },
 				//
-				IsRunInContainer:                      ctx.Bool("run-in-container"),
-				IsContainerAutoRemoveWhenExitDisabled: ctx.Bool("disable-container-auto-remove-when-exit"),
-				IsContainerRecoveryAllowed:            ctx.Bool("allow-container-recovery"),
-				IsContainerRecoveryDisabled:           ctx.Bool("disable-container-recovery"),
-				ContainerMaxAge:                       ctx.Int("container-max-age"),
-				WorkDir:                               ctx.String("workdir"),
-				Image:                                 ctx.String("image"),
-				ImageRegistryUser:                     ctx.String("image-registry-user"),
-				ImageRegistryPass:                     ctx.String("image-registry-pass"),
+				IsRunInContainer:                       ctx.Bool("run-in-container"),
+				IsContainerAutoRemoveWhenExitDisabled:  ctx.Bool("disable-container-auto-remove-when-exit"),
+				IsContainerAutoCleanupWhenExitDisabled: ctx.Bool("disable-container-auto-cleanup-when-exit"),
+				IsContainerRecoveryAllowed:             ctx.Bool("allow-container-recovery"),
+				IsContainerRecoveryDisabled:            ctx.Bool("disable-container-recovery"),
+				ContainerMaxAge:                        ctx.Int("container-max-age"),
+				WorkDir:                                ctx.String("workdir"),
+				Image:                                  ctx.String("image"),
+				ImageRegistryUser:                      ctx.String("image-registry-user"),
+				ImageRegistryPass:                      ctx.String("image-registry-pass"),
 				//
 				ServerPrivateKey: privateKey,
 				//

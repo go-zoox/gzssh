@@ -105,7 +105,10 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	}
 
 	status, cleanup, err := runInDocker(s, cfg, hostCfg, session, auditor)
-	defer cleanup()
+	if !s.IsContainerAutoCleanupWhenExitDisabled {
+		defer cleanup()
+	}
+
 	if err != nil {
 		logger.Errorf("failed to run in docker: %v", err)
 

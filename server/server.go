@@ -112,7 +112,10 @@ type Server struct {
 	Pass string
 
 	//
-	IsRunInContainer                      bool
+	IsRunInContainer bool
+	// cleanup container => 1. destroy container / 2. stop container
+	IsContainerAutoCleanupWhenExitDisabled bool
+	// destory container based on cleanup
 	IsContainerAutoRemoveWhenExitDisabled bool
 	IsContainerRecoveryAllowed            bool
 	IsContainerRecoveryDisabled           bool
@@ -468,6 +471,7 @@ func (s *Server) Start() error {
 		} else {
 			logger.Infof("[runtime] mode: %s", "container")
 			logger.Infof("[runtime] auto remove container: %v", !s.IsContainerAutoRemoveWhenExitDisabled)
+			logger.Infof("[runtime] auto cleanup container: %v", !s.IsContainerAutoCleanupWhenExitDisabled)
 
 			logger.Infof("[runtime] container recovery: %v", s.IsContainerRecoveryAllowed)
 			if s.IsContainerRecoveryAllowed {
