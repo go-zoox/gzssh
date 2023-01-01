@@ -59,13 +59,13 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 	if len(commands) != 0 {
 		if auditor != nil {
 			for _, c := range commands {
-				auditor.Write([]byte(c))
+				auditor.Write(append([]byte(c), ' '))
 			}
 
 			auditor.Write([]byte{'\r'})
 		}
 
-		cmd := exec.Command("sh", "-c", strings.Join(commands, "\n"))
+		cmd := exec.Command("sh", "-c", strings.Join(commands, " "))
 		for k, v := range s.Environment {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
 		}

@@ -59,7 +59,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 
 		if s.auditor != nil {
 			for _, c := range commands {
-				auditor.Write([]byte(c))
+				auditor.Write(append([]byte(c), ' '))
 			}
 
 			auditor.Write([]byte{'\r'})
