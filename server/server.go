@@ -212,18 +212,6 @@ func (s *Server) Start() error {
 		s.OnAuthentication = CreateDefaultOnAuthentication(s.User, s.Pass, s.IsHoneypot)
 	}
 
-	if s.IsAllowAudit {
-		if s.OnAudit == nil {
-			s.OnAudit = func(user string, remote string, isPty bool, command string) {
-				logger.Infof("[audit][user: %s][remote: %s][pty: %v] %s", user, remote, isPty, command)
-			}
-		}
-	}
-
-	if s.OnAudit != nil {
-		s.auditor = CreateDefaultAuditor(s.OnAudit)
-	}
-
 	options := []ssh.Option{
 		ssh.Option(func(server *ssh.Server) error {
 			if server.Version == "" {
@@ -286,6 +274,7 @@ func (s *Server) Start() error {
 	if s.IsHoneypot {
 		s.IsRunInContainer = true
 		s.IsContainerAutoRemoveWhenExit = false
+		s.IsAllowAudit = true
 
 		if s.IsHoneypotAllowAllUser {
 			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
@@ -294,6 +283,18 @@ func (s *Server) Start() error {
 				return true
 			}))
 		}
+	}
+
+	if s.IsAllowAudit {
+		if s.OnAudit == nil {
+			s.OnAudit = func(user string, remote string, isPty bool, command string) {
+				logger.Infof("[audit][user: %s][remote: %s][pty: %v] %s", user, remote, isPty, command)
+			}
+		}
+	}
+
+	if s.OnAudit != nil {
+		s.auditor = CreateDefaultAuditor(s.OnAudit)
 	}
 
 	ssh.Handle(func(session ssh.Session) {
