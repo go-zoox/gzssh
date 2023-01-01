@@ -445,15 +445,11 @@ func (s *Server) Start() error {
 		if s.AuthServer != "" {
 			logger.Infof("[runtime] auth server: %s", s.AuthServer)
 		}
-		if s.IsAllowSFTP {
-			logger.Infof("[runtime] sftp: %v", true)
-		}
-		if s.IsAllowRemoteForward {
-			logger.Infof("[runtime] remote port forward: %v", true)
-		}
-		if s.IsAllowAudit {
-			logger.Infof("[runtime] audit: %v", true)
-		}
+
+		logger.Infof("[runtime] sftp: %v", s.IsAllowSFTP)
+		logger.Infof("[runtime] remote port forward: %v", s.IsAllowRemoteForward)
+		logger.Infof("[runtime] audit: %v", s.IsAllowAudit)
+
 		if s.Memory != "" {
 			logger.Infof("[runtime] audit: %s", s.Memory)
 		}
