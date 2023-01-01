@@ -51,6 +51,13 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"CONTAINER_AUTO_REMOVE_WHEN_EXIT"},
 				Value:   true,
 			},
+			&cli.BoolFlag{
+				Name:    "container-allow-recovery",
+				Usage:   "Container allow recovery from stopped",
+				Aliases: []string{},
+				EnvVars: []string{"CONTAINER_ALLOW_RECOVERY"},
+				Value:   true,
+			},
 			&cli.StringFlag{
 				Name:    "image",
 				Usage:   "the container image",
@@ -247,6 +254,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				//
 				IsRunInContainer:              ctx.Bool("run-in-container"),
 				IsContainerAutoRemoveWhenExit: ctx.Bool("container-auto-remove-when-exit"),
+				IsContainerAllowRecovery:      ctx.Bool("container-allow-recovery"),
 				WorkDir:                       ctx.String("workdir"),
 				Image:                         ctx.String("image"),
 				ImageRegistryUser:             ctx.String("image-registry-user"),

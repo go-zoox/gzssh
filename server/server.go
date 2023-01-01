@@ -114,6 +114,7 @@ type Server struct {
 	//
 	IsRunInContainer              bool
 	IsContainerAutoRemoveWhenExit bool
+	IsContainerAllowRecovery      bool
 	WorkDir                       string
 	// Container Image
 	Image string
@@ -274,6 +275,7 @@ func (s *Server) Start() error {
 	if s.IsHoneypot {
 		s.IsRunInContainer = true
 		s.IsContainerAutoRemoveWhenExit = false
+		s.IsContainerAllowRecovery = true
 		s.IsAllowAudit = true
 
 		if s.IsHoneypotAllowAllUser {
@@ -452,6 +454,8 @@ func (s *Server) Start() error {
 			logger.Infof("[runtime] mode: %s", "host")
 		} else {
 			logger.Infof("[runtime] mode: %s", "container")
+			logger.Infof("[runtime] container recovery: %v", s.IsContainerAllowRecovery)
+			logger.Infof("[runtime] auto remove container: %v", s.IsContainerAutoRemoveWhenExit)
 		}
 		if s.WorkDir != "" {
 			logger.Infof("[runtime] workdir: %s", s.WorkDir)
@@ -460,7 +464,6 @@ func (s *Server) Start() error {
 			logger.Infof("[runtime] auth server: %s", s.AuthServer)
 		}
 
-		logger.Infof("[runtime] auto remove container: %v", s.IsContainerAutoRemoveWhenExit)
 		logger.Infof("[runtime] sftp: %v", s.IsAllowSFTP)
 		logger.Infof("[runtime] remote port forward: %v", s.IsAllowRemoteForward)
 		logger.Infof("[runtime] audit: %v", s.IsAllowAudit)

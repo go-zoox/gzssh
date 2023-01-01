@@ -119,6 +119,20 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 }
 
 func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, session ssh.Session, auditor *Auditor) (status int64, cleanup func(), err error) {
+	containerName := fmt.Sprintf("%s_%s_%d_%s", "gzssh", s.Version, time.Now().UnixMilli(), session.Context().SessionID())
+	if s.IsContainerAllowRecovery {
+		user := session.User()
+		remote := session.RemoteAddr().String()
+
+		ip := remote
+		parts := strings.Split(remote, ":")
+		if len(parts) >= 1 {
+			ip = parts[0]
+		}
+
+		containerName = fmt.Sprintf("%s_%s_recovery_%s_%s", "gzssh", s.Version, user, ip)
+	}
+
 	var docker *client.Client
 	docker, err = client.NewClientWithOpts()
 	if err != nil {
@@ -128,7 +142,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	status = 0
 	cleanup = func() {}
 
-	var res container.ContainerCreateCreatedBody
+	containerID := ""
 	ctx := context.Background()
 
 	if _, _, err = docker.ImageInspectWithRaw(ctx, cfg.Image); err != nil {
@@ -159,16 +173,45 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	logger.Infof("[conatiner] run with image: %s ...", cfg.Image)
-	res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, fmt.Sprintf("%s_%s_%d_%s", "gzssh", s.Version, time.Now().UnixMilli(), session.Context().SessionID()))
-	if err != nil {
-		return
+	if s.IsContainerAllowRecovery {
+		// var response types.ContainerJSON
+		response, errx := docker.ContainerInspect(ctx, containerName)
+		if errx != nil {
+			logger.Infof("[conatiner] create new container: %s ...", containerName)
+			var res container.ContainerCreateCreatedBody
+			res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, containerName)
+			if err != nil {
+				status = 1
+				return
+			}
+
+			containerID = res.ID
+		} else {
+			logger.Infof("[conatiner] recovery old container: %s ...", containerName)
+			containerID = response.ID
+			// err = docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
+			// if err != nil {
+			// 	status = 1
+			// 	return
+			// }
+		}
+	} else {
+		logger.Infof("[conatiner] create new container: %s ...", containerName)
+		var res container.ContainerCreateCreatedBody
+		res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, containerName)
+		if err != nil {
+			status = 1
+			return
+		}
+
+		containerID = res.ID
 	}
 
 	cleanup = func() {
 		if !s.IsContainerAutoRemoveWhenExit {
-			docker.ContainerStop(ctx, res.ID, nil)
+			docker.ContainerStop(ctx, containerID, nil)
 		} else {
-			docker.ContainerRemove(ctx, res.ID, types.ContainerRemoveOptions{})
+			docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
 		}
 	}
 	opts := types.ContainerAttachOptions{
@@ -178,16 +221,16 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 		Stream: true,
 	}
 	var stream types.HijackedResponse
-	stream, err = docker.ContainerAttach(ctx, res.ID, opts)
+	stream, err = docker.ContainerAttach(ctx, containerID, opts)
 	if err != nil {
 		return
 	}
 
 	cleanup = func() {
 		if !s.IsContainerAutoRemoveWhenExit {
-			docker.ContainerStop(ctx, res.ID, nil)
+			docker.ContainerStop(ctx, containerID, nil)
 		} else {
-			docker.ContainerRemove(ctx, res.ID, types.ContainerRemoveOptions{})
+			docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
 		}
 
 		stream.Close()
@@ -222,8 +265,9 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 		io.Copy(writers, session)
 	}()
 
-	err = docker.ContainerStart(ctx, res.ID, types.ContainerStartOptions{})
+	err = docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 	if err != nil {
+		status = 1
 		return
 	}
 
@@ -231,7 +275,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 		_, winCh, _ := session.Pty()
 		go func() {
 			for win := range winCh {
-				err := docker.ContainerResize(ctx, res.ID, types.ResizeOptions{
+				err := docker.ContainerResize(ctx, containerID, types.ResizeOptions{
 					Height: uint(win.Height),
 					Width:  uint(win.Width),
 				})
@@ -243,7 +287,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 		}()
 	}
 
-	resultC, errC := docker.ContainerWait(ctx, res.ID, container.WaitConditionNotRunning)
+	resultC, errC := docker.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 	select {
 	case err = <-errC:
 		return
