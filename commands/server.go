@@ -51,16 +51,16 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Value:   true,
 			},
 			&cli.BoolFlag{
-				Name:    "container-allow-recovery",
+				Name:    "allow-container-recovery",
 				Usage:   "Container allow recovery from stopped",
 				Aliases: []string{},
-				EnvVars: []string{"CONTAINER_ALLOW_RECOVERY"},
+				EnvVars: []string{"ALLOW_CONTAINER_RECOVERY"},
 			},
 			&cli.BoolFlag{
-				Name:    "container-disable-recovery",
+				Name:    "disable-container-recovery",
 				Usage:   "allow container allow recovery for honeypot",
 				Aliases: []string{},
-				EnvVars: []string{"CONTAINER_DISABLED_RECOVERY"},
+				EnvVars: []string{"DISABLED_CONTAINER_RECOVERY"},
 			},
 			&cli.StringFlag{
 				Name:    "image",
@@ -258,8 +258,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				//
 				IsRunInContainer:              ctx.Bool("run-in-container"),
 				IsContainerAutoRemoveWhenExit: ctx.Bool("container-auto-remove-when-exit"),
-				IsContainerAllowRecovery:      ctx.Bool("container-allow-recovery"),
-				IsContainerDisableRecovery:    ctx.Bool("container-disable-recovery"),
+				IsContainerAllowRecovery:      ctx.Bool("allow-container-recovery"),
+				IsContainerRecoveryDisabled:   ctx.Bool("disable-container-recovery"),
 				WorkDir:                       ctx.String("workdir"),
 				Image:                         ctx.String("image"),
 				ImageRegistryUser:             ctx.String("image-registry-user"),
