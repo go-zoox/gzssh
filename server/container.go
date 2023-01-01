@@ -106,6 +106,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 
 	status, cleanup, err := runInDocker(s, cfg, hostCfg, session, auditor)
 	if !s.IsContainerAutoCleanupWhenExitDisabled {
+		logger.Infof("[container] cleanup container ...")
 		defer cleanup()
 	}
 
