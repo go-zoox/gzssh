@@ -446,6 +446,7 @@ func (s *Server) Start() error {
 			logger.Infof("[runtime] auth server: %s", s.AuthServer)
 		}
 
+		logger.Infof("[runtime] auto remove container: %v", s.IsContainerAutoRemoveWhenExit)
 		logger.Infof("[runtime] sftp: %v", s.IsAllowSFTP)
 		logger.Infof("[runtime] remote port forward: %v", s.IsAllowRemoteForward)
 		logger.Infof("[runtime] audit: %v", s.IsAllowAudit)
