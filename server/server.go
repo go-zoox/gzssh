@@ -463,7 +463,7 @@ func (s *Server) Start() error {
 		logger.Infof("[runtime] audit: %v", s.IsAllowAudit)
 
 		if s.Memory != "" {
-			logger.Infof("[runtime] audit: %s", s.Memory)
+			logger.Infof("[runtime] memory: %s", s.Memory)
 		}
 		if s.CPUCount != 0 {
 			logger.Infof("[runtime] cpu: %d", s.CPUCount)
