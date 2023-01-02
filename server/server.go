@@ -284,6 +284,16 @@ func (s *Server) Start() error {
 		s.IsContainerAutoRemoveWhenExitDisabled = true
 		// s.IsContainerAllowRecovery = true
 		s.IsAllowAudit = true
+		// limit resource avoid server broken
+		if s.Memory == "" {
+			s.Memory = "48M"
+		}
+		if s.CPUCount == 0 {
+			s.CPUCount = 1
+		}
+		if s.CPUPercent == 0 {
+			s.CPUPercent = 60
+		}
 
 		if s.IsHoneypotAllowAllUser {
 			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
