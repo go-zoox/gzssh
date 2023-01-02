@@ -311,8 +311,12 @@ func (s *Server) Start() error {
 	}
 
 	ssh.Handle(func(session ssh.Session) {
-		exitCode := 0
 		var err error
+		user := session.User()
+		remote := session.RemoteAddr().String()
+		exitCode := 0
+
+		logger.Infof("[handle][user: %s][remote: %s] connected ...", user, remote)
 
 		if s.IsRunInContainer {
 			exitCode, err = s.runInContainer(session)
@@ -320,12 +324,10 @@ func (s *Server) Start() error {
 			exitCode, err = s.runInHost(session)
 		}
 
-		user := session.User()
-		remote := session.RemoteAddr().String()
 		if err != nil {
-			logger.Infof("[user: %s][remote: %s] exit(code: %d, error: %s).", user, remote, exitCode, err)
+			logger.Infof("[handle][user: %s][remote: %s] exit(code: %d, error: %s).", user, remote, exitCode, err)
 		} else {
-			logger.Infof("[user: %s][remote: %s] exit(code: %d).", user, remote, exitCode)
+			logger.Infof("[handle][user: %s][remote: %s] exit(code: %d).", user, remote, exitCode)
 		}
 
 		session.Exit(exitCode)
@@ -364,7 +366,7 @@ func (s *Server) Start() error {
 				return false
 			}
 
-			logger.Infof("[user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
+			logger.Infof("[auth: auth_server][user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
 			return true
 		}))
 	}
@@ -389,7 +391,6 @@ func (s *Server) Start() error {
 			remote := ctx.RemoteAddr()
 			user := ctx.User()
 			isOK := ssh.KeysEqual(key, publicKeyPEM)
-			// logger.Infof("[user: %s][remote: %s][version: %s] try to connect ...", user, remote, ctx.ClientVersion())
 			if !isOK {
 				logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] failed to authenticate.", user, remote, ctx.ClientVersion())
 			} else {
@@ -470,8 +471,8 @@ func (s *Server) Start() error {
 			logger.Infof("[runtime] mode: %s", "host")
 		} else {
 			logger.Infof("[runtime] mode: %s", "container")
-			logger.Infof("[runtime] auto remove container: %v", !s.IsContainerAutoRemoveWhenExitDisabled)
 			logger.Infof("[runtime] auto cleanup container: %v", !s.IsContainerAutoCleanupWhenExitDisabled)
+			logger.Infof("[runtime] auto remove container: %v", !s.IsContainerAutoRemoveWhenExitDisabled)
 
 			logger.Infof("[runtime] container recovery: %v", s.IsContainerRecoveryAllowed)
 			if s.IsContainerRecoveryAllowed {

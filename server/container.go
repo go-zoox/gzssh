@@ -106,7 +106,6 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 
 	status, cleanup, err := runInDocker(s, cfg, hostCfg, session, auditor)
 	if !s.IsContainerAutoCleanupWhenExitDisabled {
-		logger.Infof("[container] cleanup container ...")
 		defer cleanup()
 	}
 
@@ -296,8 +295,10 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 
 	cleanup = func() {
 		if s.IsContainerAutoRemoveWhenExitDisabled {
+			logger.Infof("[container] cleanup => stop ...")
 			docker.ContainerStop(ctx, containerID, nil)
 		} else {
+			logger.Infof("[container] cleanup => destory ...")
 			docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
 		}
 	}
@@ -315,8 +316,10 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 
 	cleanup = func() {
 		if s.IsContainerAutoRemoveWhenExitDisabled {
+			logger.Infof("[container] cleanup => stop ...")
 			docker.ContainerStop(ctx, containerID, nil)
 		} else {
+			logger.Infof("[container] cleanup => destory ...")
 			docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
 		}
 
