@@ -92,6 +92,13 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"CONTAINER_NETWORK_MODE"},
 			},
+			&cli.StringFlag{
+				Name:    "container-network",
+				Usage:   "container specifys the external network name",
+				Aliases: []string{},
+				EnvVars: []string{"CONTAINER_NETWORK"},
+			},
+
 			&cli.IntFlag{
 				Name:    "container-max-age",
 				Usage:   "when container recovery is allowed, recoveried container max age, unit: seconds",
@@ -309,6 +316,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				IsContainerReadonly:                    ctx.Bool("container-readonly"),
 				ContainerReadonlyPaths:                 ctx.String("container-readonly-paths"),
 				ContainerNetworkMode:                   ctx.String("container-network-mode"),
+				ContainerNetwork:                       ctx.String("container-network"),
 				ContainerMaxAge:                        ctx.Int("container-max-age"),
 				WorkDir:                                ctx.String("workdir"),
 				Image:                                  ctx.String("image"),

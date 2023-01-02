@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/dustin/go-humanize"
@@ -162,7 +163,34 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		}
 	}
 
-	status, cleanup, err := runInDocker(s, cfg, hostCfg, session, auditor)
+	containerName := fmt.Sprintf("%s_%s_%d_%s", "gzssh", s.Version, time.Now().UnixMilli(), session.Context().SessionID())
+	if s.IsContainerRecoveryAllowed {
+		user := session.User()
+		remote := session.RemoteAddr().String()
+
+		ip := remote
+		parts := strings.Split(remote, ":")
+		if len(parts) >= 1 {
+			ip = parts[0]
+		}
+
+		containerName = fmt.Sprintf("%s_%s_recovery_%s_%s", "gzssh", s.Version, user, ip)
+	}
+
+	var networkCfg *network.NetworkingConfig
+	if s.ContainerNetwork != "" {
+		networkCfg = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{},
+		}
+		networkCfg.EndpointsConfig[s.ContainerNetwork] = &network.EndpointSettings{
+			NetworkID: s.ContainerNetwork,
+			// Aliases: []string{
+			// 	containerName,
+			// },
+		}
+	}
+
+	status, cleanup, err := runInDocker(s, cfg, hostCfg, networkCfg, session, auditor, containerName)
 	if !s.IsContainerAutoCleanupWhenExitDisabled {
 		defer cleanup()
 	}
@@ -180,21 +208,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	return int(status), err
 }
 
-func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, session ssh.Session, auditor *Auditor) (status int64, cleanup func(), err error) {
-	containerName := fmt.Sprintf("%s_%s_%d_%s", "gzssh", s.Version, time.Now().UnixMilli(), session.Context().SessionID())
-	if s.IsContainerRecoveryAllowed {
-		user := session.User()
-		remote := session.RemoteAddr().String()
-
-		ip := remote
-		parts := strings.Split(remote, ":")
-		if len(parts) >= 1 {
-			ip = parts[0]
-		}
-
-		containerName = fmt.Sprintf("%s_%s_recovery_%s_%s", "gzssh", s.Version, user, ip)
-	}
-
+func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, networkCfg *network.NetworkingConfig, session ssh.Session, auditor *Auditor, containerName string) (status int64, cleanup func(), err error) {
 	var docker *client.Client
 	docker, err = client.NewClientWithOpts()
 	if err != nil {
@@ -241,7 +255,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 		if errx != nil {
 			logger.Infof("[conatiner] create new container: %s ...", containerName)
 			var res container.ContainerCreateCreatedBody
-			res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, containerName)
+			res, err = docker.ContainerCreate(ctx, cfg, hostCfg, networkCfg, nil, containerName)
 			if err != nil {
 				status = 1
 				return
@@ -270,7 +284,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 
 				logger.Infof("[conatiner][tty change] create new container: %s ...", containerName)
 				var res container.ContainerCreateCreatedBody
-				res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, containerName)
+				res, err = docker.ContainerCreate(ctx, cfg, hostCfg, networkCfg, nil, containerName)
 				if err != nil {
 					status = 1
 					return
@@ -321,7 +335,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 
 					logger.Infof("[conatiner][alive: expired] create new container: %s ...", containerName)
 					var res container.ContainerCreateCreatedBody
-					res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, containerName)
+					res, err = docker.ContainerCreate(ctx, cfg, hostCfg, networkCfg, nil, containerName)
 					if err != nil {
 						status = 1
 						return
@@ -342,7 +356,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	} else {
 		logger.Infof("[conatiner] create new container: %s ...", containerName)
 		var res container.ContainerCreateCreatedBody
-		res, err = docker.ContainerCreate(ctx, cfg, hostCfg, nil, nil, containerName)
+		res, err = docker.ContainerCreate(ctx, cfg, hostCfg, networkCfg, nil, containerName)
 		if err != nil {
 			status = 1
 			return

@@ -127,6 +127,8 @@ type Server struct {
 	ContainerReadonlyPaths string
 	// ContainerNetworkMode options (default | none | container:X)
 	ContainerNetworkMode string
+	// ContainerNetwork customs the exist external network
+	ContainerNetwork string
 	// ContainerMaxAge is when container recovery is allowed, recoveried container max age
 	//  unit: seconds, default: 3600 (1h)
 	ContainerMaxAge int
