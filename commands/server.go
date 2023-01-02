@@ -74,6 +74,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"ALLOW_CONTAINER_PRIVILEGE"},
 			},
+			&cli.BoolFlag{
+				Name:    "container-readonly",
+				Usage:   "Container readonly, which equals docker --read-only",
+				Aliases: []string{},
+				EnvVars: []string{"CONTAINER_READONLY"},
+			},
 			&cli.IntFlag{
 				Name:    "container-max-age",
 				Usage:   "when container recovery is allowed, recoveried container max age, unit: seconds",
@@ -288,6 +294,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				IsContainerRecoveryAllowed:             ctx.Bool("allow-container-recovery"),
 				IsContainerRecoveryDisabled:            ctx.Bool("disable-container-recovery"),
 				IsContainerPrivilegeAllowed:            ctx.Bool("allow-container-privilege"),
+				IsContainerReadonly:                    ctx.Bool("container-readonly"),
 				ContainerMaxAge:                        ctx.Int("container-max-age"),
 				WorkDir:                                ctx.String("workdir"),
 				Image:                                  ctx.String("image"),

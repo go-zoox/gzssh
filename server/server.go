@@ -121,6 +121,8 @@ type Server struct {
 	IsContainerRecoveryDisabled           bool
 	// IsContainerPrivilegeAllowed means docker container privileged
 	IsContainerPrivilegeAllowed bool
+	// IsContainerReadonly means docker container readonly rootfs
+	IsContainerReadonly bool
 	// ContainerMaxAge is when container recovery is allowed, recoveried container max age
 	//  unit: seconds, default: 3600 (1h)
 	ContainerMaxAge int
@@ -497,6 +499,7 @@ func (s *Server) Start() error {
 				logger.Infof("[runtime] container max age: %ds", s.ContainerMaxAge)
 			}
 			logger.Infof("[runtime] container privileged: %v", s.IsContainerPrivilegeAllowed)
+			logger.Infof("[runtime] container readonly: %v", s.IsContainerReadonly)
 		}
 		if s.WorkDir != "" {
 			logger.Infof("[runtime] workdir: %s", s.WorkDir)
