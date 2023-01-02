@@ -139,6 +139,9 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 			hostCfg.ReadonlyPaths = append(hostCfg.ReadonlyPaths, paths...)
 		}
 	}
+	if s.ContainerNetworkMode != "" {
+		hostCfg.NetworkMode = container.NetworkMode(s.ContainerNetworkMode)
+	}
 
 	if s.IsHoneypot {
 		// user := session.User()
