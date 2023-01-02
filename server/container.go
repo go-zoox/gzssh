@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -78,11 +79,53 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 
 		hostCfg.Resources.Memory = int64(memory)
 	}
-	if s.CPUCount != 0 {
-		hostCfg.Resources.CPUCount = int64(s.CPUCount)
-	}
+
 	if s.CPUPercent != 0 {
-		hostCfg.Resources.CPUPercent = int64(s.CPUPercent)
+		// hostCfg.Resources.CPUPercent = int64(s.CPUPercent)
+
+		// issue: failed to run in docker: Error response from daemon: Conflicting options: Nano CPUs and CPU Period cannot both be set
+		// github: https://github.com/docker/docker-py/issues/1920#issuecomment-505406784
+		hostCfg.Resources.NanoCPUs = 0
+
+		// https://www.elephdev.com/cDocker/296.html?ref=addtabs&lang=zh-cn
+		// cpu-period：指刷新时间,单位是微秒（us），默认值是0.1秒，即100,000us
+		// cpu-quota：容器占用时间,单位是微秒（us）,默认是-1，即不限制
+		if hostCfg.Resources.CPUPeriod == 0 {
+			hostCfg.Resources.CPUPeriod = 100000
+		}
+
+		// https://stackoverflow.com/questions/68999736/whether-the-cpus-means-logical-cpu-processors
+		// Linux kernel's CFS bandwidth control mechanism: https://www.kernel.org/doc/html/latest/scheduler/sched-bwc.html
+		hostCfg.Resources.CPUQuota = hostCfg.Resources.CPUPeriod * int64(s.CPUPercent) / 100
+	}
+
+	// https://unihon.github.io/2019-08/specify-memory-and-cpu-of-the-container/
+	if s.CPUs > 0 {
+		// hostCfg.Resources.CPUCount = int64(s.CPUCount)
+
+		// CPUQuota = CPUQuota * CPUs / SystemCPUCores
+		if hostCfg.Resources.CPUQuota != 0 {
+			hostCfg.Resources.CPUQuota = hostCfg.Resources.CPUQuota * int64(s.CPUs*100) / 100 / int64(runtime.NumCPU())
+		} else {
+			// –cpus 容器CPU占用主机的CPU的比例
+			// –cpus=2比–cpus=1，占用比例要大。
+			// 在 docker inspect 3ef363848eb8 | grep Cpu 中有个 NanoCpus 会随其规律性变化。
+			hostCfg.Resources.NanoCPUs = int64(s.CPUs * 1e9)
+		}
+	}
+
+	fmt.Println("hostCfg.Resources.CPUQuota:", hostCfg.Resources.CPUQuota)
+
+	// –cpuset-cpus：指定允许容器使用的CPU序号,从0开始，默认使用主机的所有CPU
+	if s.CpusetCpus != "" {
+		hostCfg.Resources.CpusetCpus = s.CpusetCpus
+	}
+	if s.CpusetMems != "" {
+		hostCfg.Resources.CpusetMems = s.CpusetMems
+	}
+	// –cpu-shares 是相对权重， 设置为一个正整数，代表所分配的相对CPU资源比，需要注意的是，这种情况只发生在CPU资源紧张的情况下
+	if s.CPUShares != 0 {
+		hostCfg.Resources.CPUShares = int64(s.CPUShares)
 	}
 
 	if s.IsHoneypot {

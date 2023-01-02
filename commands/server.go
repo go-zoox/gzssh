@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"io/ioutil"
+	"runtime"
 
 	"github.com/go-zoox/cli"
 	"github.com/go-zoox/fs"
@@ -196,8 +197,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"MEMORY"},
 			},
-			&cli.IntFlag{
-				Name:    "cpu-count",
+			&cli.Float64Flag{
+				Name:    "cpus",
 				Usage:   "Max CPU Core Count, such as 2",
 				Aliases: []string{},
 				EnvVars: []string{"CPU_COUNT"},
@@ -260,6 +261,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				}
 			}
 
+			//
+			cpus := ctx.Float64("cpus")
+			if cpus < 0 {
+				cpus = float64(runtime.NumCPU())
+			}
+
 			s := &server.Server{
 				Host: ctx.String("host"),
 				Port: ctx.Int("port"),
@@ -305,8 +312,10 @@ func RegistryServer(app *cli.MultipleProgram) {
 				HoneypotUser:           ctx.String("honeypot-user"),
 				//
 				Memory:     ctx.String("memory"),
-				CPUCount:   ctx.Int("cpu-count"),
+				CPUs:       cpus,
 				CPUPercent: ctx.Int("cpu-percent"),
+				CpusetCpus: ctx.String("cpuset-cpus"),
+				CpusetMems: ctx.String("cpuset-mems"),
 				//
 				IdleTimeout: ctx.Int("idle-timeout"),
 				MaxTimeout:  ctx.Int("max-timeout"),

@@ -179,10 +179,15 @@ type Server struct {
 	// Resource LIMIT
 	// Memory is the memory limit for container, such as 100MB = 100M, 1GB=1G
 	Memory string
-	// CPUCount  is the cpu core count limit for container, such as 1, 2
-	CPUCount int
+	// CPUs  is the cpu core count limit for container, such as 1, 2
+	CPUs float64
 	// CPUCount  is the cpu percent limit for container, range: 1~100, such as 10, 80
 	CPUPercent int
+	//
+	CpusetCpus string
+	CpusetMems string
+	//
+	CPUShares int
 
 	//
 	auditor func(user string, remote string, isPty bool) *Auditor
@@ -288,8 +293,8 @@ func (s *Server) Start() error {
 		if s.Memory == "" {
 			s.Memory = "48M"
 		}
-		if s.CPUCount == 0 {
-			s.CPUCount = 1
+		if s.CPUs == 0 {
+			s.CPUs = 1
 		}
 		if s.CPUPercent == 0 {
 			s.CPUPercent = 60
@@ -503,8 +508,8 @@ func (s *Server) Start() error {
 		if s.Memory != "" {
 			logger.Infof("[runtime] memory: %s", s.Memory)
 		}
-		if s.CPUCount != 0 {
-			logger.Infof("[runtime] cpu: %d", s.CPUCount)
+		if s.CPUs != 0 {
+			logger.Infof("[runtime] cpu cores: %.2f", s.CPUs)
 		}
 		if s.CPUPercent != 0 {
 			logger.Infof("[runtime] cpu percent: %d", s.CPUPercent)
