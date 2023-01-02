@@ -80,7 +80,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		hostCfg.Resources.Memory = int64(memory)
 	}
 
-	if s.CPUPercent != 0 {
+	if s.CPUPercent > 0 {
 		// hostCfg.Resources.CPUPercent = int64(s.CPUPercent)
 
 		// issue: failed to run in docker: Error response from daemon: Conflicting options: Nano CPUs and CPU Period cannot both be set
@@ -114,7 +114,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		}
 	}
 
-	fmt.Println("hostCfg.Resources.CPUQuota:", hostCfg.Resources.CPUQuota)
+	// fmt.Println("hostCfg.Resources.CPUQuota:", hostCfg.Resources.CPUQuota)
 
 	// –cpuset-cpus：指定允许容器使用的CPU序号,从0开始，默认使用主机的所有CPU
 	if s.CpusetCpus != "" {
@@ -124,7 +124,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		hostCfg.Resources.CpusetMems = s.CpusetMems
 	}
 	// –cpu-shares 是相对权重， 设置为一个正整数，代表所分配的相对CPU资源比，需要注意的是，这种情况只发生在CPU资源紧张的情况下
-	if s.CPUShares != 0 {
+	if s.CPUShares > 0 {
 		hostCfg.Resources.CPUShares = int64(s.CPUShares)
 	}
 
