@@ -130,6 +130,15 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 
 	hostCfg.Privileged = s.IsContainerPrivilegeAllowed
 	hostCfg.ReadonlyRootfs = s.IsContainerReadonly
+	if s.ContainerReadonlyPaths != "" {
+		if hostCfg.ReadonlyPaths == nil {
+			hostCfg.ReadonlyPaths = []string{}
+		}
+		paths := strings.Split(s.ContainerReadonlyPaths, ",")
+		if len(paths) > 0 {
+			hostCfg.ReadonlyPaths = append(hostCfg.ReadonlyPaths, paths...)
+		}
+	}
 
 	if s.IsHoneypot {
 		// user := session.User()
