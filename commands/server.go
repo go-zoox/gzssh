@@ -68,6 +68,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"DISABLED_CONTAINER_RECOVERY"},
 			},
+			&cli.BoolFlag{
+				Name:    "allow-container-privilege",
+				Usage:   "Container allow privileged, which equals docker --privileged",
+				Aliases: []string{},
+				EnvVars: []string{"ALLOW_CONTAINER_PRIVILEGE"},
+			},
 			&cli.IntFlag{
 				Name:    "container-max-age",
 				Usage:   "when container recovery is allowed, recoveried container max age, unit: seconds",
@@ -281,6 +287,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				IsContainerAutoCleanupWhenExitDisabled: ctx.Bool("disable-container-auto-cleanup-when-exit"),
 				IsContainerRecoveryAllowed:             ctx.Bool("allow-container-recovery"),
 				IsContainerRecoveryDisabled:            ctx.Bool("disable-container-recovery"),
+				IsContainerPrivilegeAllowed:            ctx.Bool("allow-container-privilege"),
 				ContainerMaxAge:                        ctx.Int("container-max-age"),
 				WorkDir:                                ctx.String("workdir"),
 				Image:                                  ctx.String("image"),

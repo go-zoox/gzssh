@@ -128,6 +128,10 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		hostCfg.Resources.CPUShares = int64(s.CPUShares)
 	}
 
+	if s.IsContainerPrivilegeAllowed {
+		hostCfg.Privileged = s.IsContainerPrivilegeAllowed
+	}
+
 	if s.IsHoneypot {
 		// user := session.User()
 		// cfg.Env = append(cfg.Env, fmt.Sprintf("HOME=/home/%s", user))

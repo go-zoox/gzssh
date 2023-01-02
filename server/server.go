@@ -119,6 +119,8 @@ type Server struct {
 	IsContainerAutoRemoveWhenExitDisabled bool
 	IsContainerRecoveryAllowed            bool
 	IsContainerRecoveryDisabled           bool
+	// IsContainerPrivilegeAllowed means docker container privileged
+	IsContainerPrivilegeAllowed bool
 	// ContainerMaxAge is when container recovery is allowed, recoveried container max age
 	//  unit: seconds, default: 3600 (1h)
 	ContainerMaxAge int
@@ -287,6 +289,7 @@ func (s *Server) Start() error {
 	if s.IsHoneypot {
 		s.IsRunInContainer = true
 		s.IsContainerAutoRemoveWhenExitDisabled = true
+		s.IsContainerPrivilegeAllowed = false
 		// s.IsContainerAllowRecovery = true
 		s.IsAllowAudit = true
 		// limit resource avoid server broken
@@ -493,6 +496,7 @@ func (s *Server) Start() error {
 			if s.IsContainerRecoveryAllowed {
 				logger.Infof("[runtime] container max age: %ds", s.ContainerMaxAge)
 			}
+			logger.Infof("[runtime] container privileged: %v", s.IsContainerPrivilegeAllowed)
 		}
 		if s.WorkDir != "" {
 			logger.Infof("[runtime] workdir: %s", s.WorkDir)
