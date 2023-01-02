@@ -82,7 +82,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		hostCfg.Resources.CPUCount = int64(s.CPUCount)
 	}
 	if s.CPUPercent != 0 {
-		hostCfg.Resources.CPUCount = int64(s.CPUPercent)
+		hostCfg.Resources.CPUPercent = int64(s.CPUPercent)
 	}
 
 	if s.IsHoneypot {
