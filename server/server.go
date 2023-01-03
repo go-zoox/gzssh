@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -12,9 +13,9 @@ import (
 	"github.com/go-zoox/datetime"
 	"github.com/go-zoox/fetch"
 	"github.com/go-zoox/gzssh/server/sftp"
+	oauthqrcode "github.com/go-zoox/gzssh/utils/oauth-qrcode"
 	"github.com/go-zoox/gzssh/utils/qrcode"
 	"github.com/go-zoox/logger"
-	"github.com/go-zoox/uuid"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -162,6 +163,10 @@ type Server struct {
 
 	// QRCode is qrcode login, should works with auth server
 	QRCode bool
+	// QRCodeClientID is the oauth server (auth-server) client id
+	QRCodeClientID string
+	// QRCodeRedirectURI is the oauth server (auth-server) redirect uri
+	QRCodeRedirectURI string
 
 	// Version is the GzSSH Version
 	Version string
@@ -239,6 +244,10 @@ func (s *Server) Start() error {
 
 	if s.OnAuthentication == nil {
 		s.OnAuthentication = CreateDefaultOnAuthentication(s.User, s.Pass, s.IsHoneypot)
+	}
+
+	if s.QRCode && s.AuthServer == "" {
+		s.AuthServer = "https://login.zcorky.com"
 	}
 
 	options := []ssh.Option{
@@ -349,48 +358,111 @@ func (s *Server) Start() error {
 		exitCode := 0
 
 		if s.QRCode {
-			io.WriteString(session, fmt.Sprintf("SSH Auth via QRCode (Poweredby %s).\n", s.BrandName))
-			qrcodeID := uuid.V4()
-			qrcodeURL := fmt.Sprintf("http://qrcode.com/qrcode/%s", qrcodeID)
+			io.WriteString(session, `
+########################################
+#         SSH Auth via QRCode          #
+#          Powered By GZSSH            #
+########################################
+`)
 
-			// qrcodeImage := newQRCOdeWriter()
+			// QRCodeClientID: "https://login.zcorky.com"
+			// QRCodeClientID: "a83a2f195b847b3d6ecbb4805a6e3509",
+			// QRCodeRedirectURI: "https://test-terminal-qrcode.zcork.com/login/doreamon/callback",
+			logger.Infof("[handler] create qrcode login instance ...")
+			state := oauthqrcode.NewLogin(
+				s.AuthServer,
+				s.QRCodeClientID,
+				s.QRCodeRedirectURI,
+			)
 
-			// qrterminalCfg := qrterminal.Config{
-			// 	Level:     qrterminal.L,
-			// 	Writer:    os.Stdout,
-			// 	BlackChar: qrterminal.BLACK,
-			// 	WhiteChar: qrterminal.WHITE,
-			// 	QuietZone: 1,
-			// 	// Writer:    qrcodeImage,
-			// }
-			// qrterminalCfg.Writer = qrcodeImage
-			// go io.Copy(session, qrcodeImage)
-			// go qrterminal.GenerateWithConfig(qrcodeURL, qrterminalCfg)
+			logger.Infof("[handler] wait for getting qrcode url ...")
+			qrcodeURL := <-state.GetQRCodeURL()
 
-			// fmt.Println("Done 0")
-			// v := <-qrcodeImage.Done()
-			// fmt.Println("Done 1", v)
-
+			logger.Infof("[handler] generate qrcode from qrcode url, then send it to client ...")
 			io.Copy(session, qrcode.New(qrcodeURL))
 
-			io.WriteString(session, fmt.Sprintf("Please scan the qrcode in %d seconds.\n", s.IdleTimeout))
+			logger.Infof("[handler] wait client user scan qrcode and checking qrcode status in background ...")
+			io.WriteString(session, fmt.Sprintf("[%s] Please scan the qrcode in %d seconds.\n", datetime.Now(), s.IdleTimeout))
+			io.WriteString(session, fmt.Sprintf("[%s] 	if you cannot use qrcode, you can also visit the following url in browser: \n%s\n", datetime.Now(), qrcodeURL))
 
-			time.Sleep(1 * time.Second)
-			io.WriteString(session, fmt.Sprintf("[%s] QRCode has been scanned by user %s.\n", datetime.Now(), "xxx"))
+			// time.Sleep(1 * time.Second)
+			doneCh := make(chan bool)
+			errCh := make(chan error)
+			go func() {
+				// get status interval
+				for {
+					if ok, err := state.GetStatus(); err != nil {
+						log.Fatalf("failed to get status: %v", err)
+					} else if ok {
+						// fmt.Println("login success")
+						doneCh <- true
+						break
+					} else {
+						// fmt.Printf("waiting for login(status: %s) ...\n", state.GetQRCodeStatus())
+						time.Sleep(3000)
+					}
+				}
+			}()
+			go func() {
+				// handle oauth logic
+				for {
+					select {
+					case <-doneCh:
+						if err := state.GetToken(); err != nil {
+							errCh <- fmt.Errorf("failed to get token: %v", err)
+							return
+						}
 
-			time.Sleep(1 * time.Second)
-			io.WriteString(session, fmt.Sprintf("[%s] QRCode has been confirmed by user %s.\n", datetime.Now(), "xxx"))
+						if err := state.GetUser(); err != nil {
+							errCh <- fmt.Errorf("failed to get user: %v", err)
+							return
+						}
 
-			time.Sleep(1 * time.Second)
+						accessToken, err := state.GetAccessToken()
+						if err != nil {
+							errCh <- fmt.Errorf("failed to get access token: %v", err)
+							return
+						}
 
-			if false {
+						if err := oauthqrcode.SetAuthToken(accessToken); err != nil {
+							errCh <- fmt.Errorf("failed to set auth token: %v", err)
+							return
+						}
+
+						// // clear screen
+						// clear := exec.Command("clear")
+						// clear.Stdout = os.Stdout
+						// clear.Run()
+
+						// logger.Info("token: %s", state.GetAccessToken())
+						_, err = state.GetAccessToken()
+						if err != nil {
+							errCh <- fmt.Errorf("failed to get access token: %v", err)
+							return
+						}
+
+						errCh <- nil
+						return
+					}
+				}
+			}()
+
+			// io.WriteString(session, fmt.Sprintf("[%s] QRCode has been scanned by user %s.\n", datetime.Now(), "xxx"))
+
+			// time.Sleep(1 * time.Second)
+			// io.WriteString(session, fmt.Sprintf("[%s] QRCode has been confirmed by user %s.\n", datetime.Now(), "xxx"))
+
+			// time.Sleep(1 * time.Second)
+
+			if err := <-errCh; err != nil {
+				logger.Infof("[handler] qrcode error(detail: %s).", err)
 				io.WriteString(session, fmt.Sprintf("[%s] QRCode failed to authenticate.\n", datetime.Now()))
 				session.Exit(1)
 				return
 			}
 
-			logger.Infof("[handle][user: %s][remote: %s] logined with qrcode ...", user, remote)
-			io.WriteString(session, fmt.Sprintf("[%s] Welcome %s, you have logined SSH.\n", datetime.Now(), user))
+			logger.Infof("[handle][user: %s][remote: %s] logined with qrcode user(%s, ssh user: %s) ...", user, remote, state.GetCurrentUser().Nickname, user)
+			io.WriteString(session, fmt.Sprintf("[%s] Welcome %s, You have logined SSH(ssh user %s).\n", datetime.Now(), state.GetCurrentUser().Nickname, user))
 		}
 
 		logger.Infof("[handle][user: %s][remote: %s] connected ...", user, remote)
@@ -417,6 +489,10 @@ func (s *Server) Start() error {
 	} else if s.AuthServer != "" {
 		// qrcode login
 		if s.QRCode {
+			if s.QRCodeClientID == "" || s.QRCodeRedirectURI == "" {
+				return fmt.Errorf("[qrcode] client id (--qrcode-client-id) and redirect uri (--qrcode-redirect-uri) are required")
+			}
+
 			options = append(options, func(s *ssh.Server) error {
 				originServerConfigCallback := s.ServerConfigCallback
 
@@ -430,7 +506,7 @@ func (s *Server) Start() error {
 
 					cfg.NoClientAuth = true
 
-					fmt.Println("cfg.NoClientAuth:", cfg.NoClientAuth)
+					// fmt.Println("cfg.NoClientAuth:", cfg.NoClientAuth)
 
 					return cfg
 				}
@@ -470,6 +546,10 @@ func (s *Server) Start() error {
 				logger.Infof("[auth: auth_server][user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
 				return true
 			}))
+		}
+	} else {
+		if s.QRCode {
+			return fmt.Errorf("[qrcode] require --auth-server as qrcode oauth server")
 		}
 	}
 
@@ -569,6 +649,7 @@ func (s *Server) Start() error {
 		logger.Infof("[runtime] brand: %s", s.BrandName)
 		logger.Infof("[runtime] gzssh: %s", s.Version)
 		logger.Infof("[runtime] server version: SSH-2.0-%s", s.ServerEchoVersion)
+		logger.Infof("")
 		if !s.IsRunInContainer {
 			logger.Infof("[runtime] mode: %s", "host")
 		} else {
@@ -591,10 +672,23 @@ func (s *Server) Start() error {
 			logger.Infof("[runtime] workdir: %s", s.WorkDir)
 		}
 		if s.AuthServer != "" {
-			logger.Infof("[runtime] auth server: %s", s.AuthServer)
+			if !s.QRCode {
+				logger.Infof("")
+				logger.Infof("[runtime] auth mode: %s", "auth-server")
+				logger.Infof("[runtime] auth server: %s", s.AuthServer)
+				logger.Infof("")
+			} else {
+				logger.Infof("")
+				logger.Infof("[runtime] auth mode: %s", "qrcode")
+				logger.Infof("[runtime] qrcode auth server: %s", s.AuthServer)
+				logger.Infof("[runtime] qrcode client id: %s", s.QRCodeClientID)
+				logger.Infof("[runtime] qrcode redirect uri: %s", s.QRCodeRedirectURI)
+				logger.Infof("")
+			}
 		}
 
 		logger.Infof("[runtime] sftp: %v", s.IsAllowSFTP)
+		logger.Infof("")
 		logger.Infof("[runtime] remote port forward: %v", s.IsAllowRemoteForward)
 		logger.Infof("[runtime] audit: %v", s.IsAllowAudit)
 

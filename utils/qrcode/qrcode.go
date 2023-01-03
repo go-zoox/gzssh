@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/mdp/qrterminal"
+	"github.com/mdp/qrterminal/v3"
 )
 
 type QRCode struct {
