@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/go-zoox/datetime"
 	"github.com/go-zoox/fetch"
 	"github.com/go-zoox/gzssh/server/sftp"
 	"github.com/go-zoox/gzssh/utils/qrcode"
@@ -372,8 +373,24 @@ func (s *Server) Start() error {
 
 			io.Copy(session, qrcode.New(qrcodeURL))
 
+			io.WriteString(session, fmt.Sprintf("Please scan the qrcode in %d seconds.\n", s.IdleTimeout))
+
+			time.Sleep(1 * time.Second)
+			io.WriteString(session, fmt.Sprintf("[%s] QRCode has been scanned by user %s.\n", datetime.Now(), "xxx"))
+
+			time.Sleep(1 * time.Second)
+			io.WriteString(session, fmt.Sprintf("[%s] QRCode has been confirmed by user %s.\n", datetime.Now(), "xxx"))
+
+			time.Sleep(1 * time.Second)
+
+			if false {
+				io.WriteString(session, fmt.Sprintf("[%s] QRCode failed to authenticate.\n", datetime.Now()))
+				session.Exit(1)
+				return
+			}
+
 			logger.Infof("[handle][user: %s][remote: %s] logined with qrcode ...", user, remote)
-			io.WriteString(session, fmt.Sprintf("\nWelcome %s, you have logined SSH.\n", user))
+			io.WriteString(session, fmt.Sprintf("[%s] Welcome %s, you have logined SSH.\n", datetime.Now(), user))
 		}
 
 		logger.Infof("[handle][user: %s][remote: %s] connected ...", user, remote)
