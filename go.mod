@@ -10,7 +10,7 @@ require (
 	github.com/go-zoox/cli v1.0.10
 	github.com/go-zoox/config v1.2.3
 	github.com/go-zoox/datetime v1.1.0
-	github.com/go-zoox/fetch v1.5.5
+	github.com/go-zoox/fetch v1.5.6
 	github.com/go-zoox/fs v1.3.0
 	github.com/go-zoox/logger v1.3.1
 	github.com/mdp/qrterminal/v3 v3.0.0
@@ -64,4 +64,4 @@ require (
 	rsc.io/qr v0.2.0 // indirect
 )
 
-replace github.com/go-zoox/fetch => ../fetch
+// replace github.com/go-zoox/fetch => ../fetch
