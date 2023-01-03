@@ -175,6 +175,24 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"AUTH_SERVER"},
 			},
 			&cli.BoolFlag{
+				Name:    "qrcode",
+				Usage:   "qrcode login, works with auth-server, if qrcode is true, auth-server(default: https://login.zcorky.com) is the qrcode oauth server",
+				Aliases: []string{},
+				EnvVars: []string{"QRCODE"},
+			},
+			&cli.StringFlag{
+				Name:    "qrcode-client-id",
+				Usage:   "the oauth server (auth-server) client id",
+				Aliases: []string{},
+				EnvVars: []string{"QRCODE_CLIENT_ID"},
+			},
+			&cli.StringFlag{
+				Name:    "qrcode-redirect-uri",
+				Usage:   "the oauth server (auth-server) redirect uri",
+				Aliases: []string{},
+				EnvVars: []string{"QRCODE_REDIRECT_URI"},
+			},
+			&cli.BoolFlag{
 				Name:    "allow-sftp",
 				Usage:   "allow sftp server",
 				Aliases: []string{},
@@ -331,7 +349,10 @@ func RegistryServer(app *cli.MultipleProgram) {
 				//
 				BrandName: ctx.String("brand-name"),
 				//
-				AuthServer: ctx.String("auth-server"),
+				AuthServer:        ctx.String("auth-server"),
+				QRCode:            ctx.Bool("qrcode"),
+				QRCodeClientID:    ctx.String("qrcode-client-id"),
+				QRCodeRedirectURI: ctx.String("qrcode-redirect-uri"),
 				//
 				Version: ctx.App.Version,
 				//

@@ -3,14 +3,18 @@ package server
 import (
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/go-zoox/datetime"
 	"github.com/go-zoox/fetch"
 	"github.com/go-zoox/gzssh/server/sftp"
+	oauthqrcode "github.com/go-zoox/gzssh/utils/oauth-qrcode"
+	"github.com/go-zoox/gzssh/utils/qrcode"
 	"github.com/go-zoox/logger"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -157,6 +161,13 @@ type Server struct {
 	// AuthServer is used for verify user/pass, instead of user/pass
 	AuthServer string
 
+	// QRCode is qrcode login, should works with auth server
+	QRCode bool
+	// QRCodeClientID is the oauth server (auth-server) client id
+	QRCodeClientID string
+	// QRCodeRedirectURI is the oauth server (auth-server) redirect uri
+	QRCodeRedirectURI string
+
 	// Version is the GzSSH Version
 	Version string
 
@@ -233,6 +244,10 @@ func (s *Server) Start() error {
 
 	if s.OnAuthentication == nil {
 		s.OnAuthentication = CreateDefaultOnAuthentication(s.User, s.Pass, s.IsHoneypot)
+	}
+
+	if s.QRCode && s.AuthServer == "" {
+		s.AuthServer = "https://login.zcorky.com"
 	}
 
 	options := []ssh.Option{
@@ -342,6 +357,114 @@ func (s *Server) Start() error {
 		remote := session.RemoteAddr().String()
 		exitCode := 0
 
+		if s.QRCode {
+			io.WriteString(session, `
+########################################
+#         SSH Auth via QRCode          #
+#          Powered By GZSSH            #
+########################################
+`)
+
+			// QRCodeClientID: "https://login.zcorky.com"
+			// QRCodeClientID: "a83a2f195b847b3d6ecbb4805a6e3509",
+			// QRCodeRedirectURI: "https://test-terminal-qrcode.zcork.com/login/doreamon/callback",
+			logger.Infof("[handler] create qrcode login instance ...")
+			state := oauthqrcode.NewLogin(
+				s.AuthServer,
+				s.QRCodeClientID,
+				s.QRCodeRedirectURI,
+			)
+
+			logger.Infof("[handler] wait for getting qrcode url ...")
+			qrcodeURL := <-state.GetQRCodeURL()
+
+			logger.Infof("[handler] generate qrcode from qrcode url, then send it to client ...")
+			io.Copy(session, qrcode.New(qrcodeURL))
+
+			logger.Infof("[handler] wait client user scan qrcode and checking qrcode status in background ...")
+			io.WriteString(session, fmt.Sprintf("[%s] Please scan the qrcode in %d seconds.\n", datetime.Now(), s.IdleTimeout))
+			io.WriteString(session, fmt.Sprintf("[%s] 	if you cannot use qrcode, you can also visit the following url in browser: \n%s\n", datetime.Now(), qrcodeURL))
+
+			// time.Sleep(1 * time.Second)
+			doneCh := make(chan bool)
+			errCh := make(chan error)
+			go func() {
+				// get status interval
+				for {
+					if ok, err := state.GetStatus(); err != nil {
+						log.Fatalf("failed to get status: %v", err)
+					} else if ok {
+						// fmt.Println("login success")
+						doneCh <- true
+						break
+					} else {
+						// fmt.Printf("waiting for login(status: %s) ...\n", state.GetQRCodeStatus())
+						time.Sleep(3000)
+					}
+				}
+			}()
+			go func() {
+				// handle oauth logic
+				for {
+					select {
+					case <-doneCh:
+						if err := state.GetToken(); err != nil {
+							errCh <- fmt.Errorf("failed to get token: %v", err)
+							return
+						}
+
+						if err := state.GetUser(); err != nil {
+							errCh <- fmt.Errorf("failed to get user: %v", err)
+							return
+						}
+
+						accessToken, err := state.GetAccessToken()
+						if err != nil {
+							errCh <- fmt.Errorf("failed to get access token: %v", err)
+							return
+						}
+
+						if err := oauthqrcode.SetAuthToken(accessToken); err != nil {
+							errCh <- fmt.Errorf("failed to set auth token: %v", err)
+							return
+						}
+
+						// // clear screen
+						// clear := exec.Command("clear")
+						// clear.Stdout = os.Stdout
+						// clear.Run()
+
+						// logger.Info("token: %s", state.GetAccessToken())
+						_, err = state.GetAccessToken()
+						if err != nil {
+							errCh <- fmt.Errorf("failed to get access token: %v", err)
+							return
+						}
+
+						errCh <- nil
+						return
+					}
+				}
+			}()
+
+			// io.WriteString(session, fmt.Sprintf("[%s] QRCode has been scanned by user %s.\n", datetime.Now(), "xxx"))
+
+			// time.Sleep(1 * time.Second)
+			// io.WriteString(session, fmt.Sprintf("[%s] QRCode has been confirmed by user %s.\n", datetime.Now(), "xxx"))
+
+			// time.Sleep(1 * time.Second)
+
+			if err := <-errCh; err != nil {
+				logger.Infof("[handler] qrcode error(detail: %s).", err)
+				io.WriteString(session, fmt.Sprintf("[%s] QRCode failed to authenticate.\n", datetime.Now()))
+				session.Exit(1)
+				return
+			}
+
+			logger.Infof("[handle][user: %s][remote: %s] logined with qrcode user(%s, ssh user: %s) ...", user, remote, state.GetCurrentUser().Nickname, user)
+			io.WriteString(session, fmt.Sprintf("[%s] Welcome %s, You have logined SSH(ssh user %s).\n", datetime.Now(), state.GetCurrentUser().Nickname, user))
+		}
+
 		logger.Infof("[handle][user: %s][remote: %s] connected ...", user, remote)
 
 		if s.IsRunInContainer {
@@ -364,37 +487,70 @@ func (s *Server) Start() error {
 			return s.OnAuthentication(ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
 		}))
 	} else if s.AuthServer != "" {
-		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-			url := fmt.Sprintf("%s/login", s.AuthServer)
-			remote := ctx.RemoteAddr().String()
-			user := ctx.User()
+		// qrcode login
+		if s.QRCode {
+			if s.QRCodeClientID == "" || s.QRCodeRedirectURI == "" {
+				return fmt.Errorf("[qrcode] client id (--qrcode-client-id) and redirect uri (--qrcode-redirect-uri) are required")
+			}
 
-			response, err := fetch.Post(url, &fetch.Config{
-				Headers: map[string]string{
-					"content-type": "application/json",
-					"accept":       "application/json",
-					"user-agent":   fmt.Sprintf("gzssh/%s go-zoox_fetch/%s", s.Version, fetch.Version),
-				},
-				Body: map[string]string{
-					"from":     "gzssh",
-					"remote":   remote,
-					"username": user,
-					"password": pass,
-				},
+			options = append(options, func(s *ssh.Server) error {
+				originServerConfigCallback := s.ServerConfigCallback
+
+				s.ServerConfigCallback = func(ctx ssh.Context) *gossh.ServerConfig {
+					var cfg *gossh.ServerConfig
+					if originServerConfigCallback == nil {
+						cfg = &gossh.ServerConfig{}
+					} else {
+						cfg = originServerConfigCallback(ctx)
+					}
+
+					cfg.NoClientAuth = true
+
+					// fmt.Println("cfg.NoClientAuth:", cfg.NoClientAuth)
+
+					return cfg
+				}
+
+				return nil
 			})
-			if err != nil {
-				logger.Errorf("failed to login with user(%s) to %s (err: %v)", user, url, err)
-				return false
-			}
+		} else {
+			// password login
+			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
+				url := fmt.Sprintf("%s/login", s.AuthServer)
+				remote := ctx.RemoteAddr().String()
+				user := ctx.User()
 
-			if !response.Ok() {
-				logger.Errorf("failed to login with user(%s) to %s (status: %d, response: %s)", user, url, response.Status, response.String())
-				return false
-			}
+				response, err := fetch.Post(url, &fetch.Config{
+					Headers: map[string]string{
+						"content-type": "application/json",
+						"accept":       "application/json",
+						"user-agent":   fmt.Sprintf("gzssh/%s go-zoox_fetch/%s", s.Version, fetch.Version),
+					},
+					Body: map[string]string{
+						"from":     "gzssh",
+						"remote":   remote,
+						"username": user,
+						"password": pass,
+					},
+				})
+				if err != nil {
+					logger.Errorf("failed to login with user(%s) to %s (err: %v)", user, url, err)
+					return false
+				}
 
-			logger.Infof("[auth: auth_server][user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
-			return true
-		}))
+				if !response.Ok() {
+					logger.Errorf("failed to login with user(%s) to %s (status: %d, response: %s)", user, url, response.Status, response.String())
+					return false
+				}
+
+				logger.Infof("[auth: auth_server][user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
+				return true
+			}))
+		}
+	} else {
+		if s.QRCode {
+			return fmt.Errorf("[qrcode] require --auth-server as qrcode oauth server")
+		}
 	}
 
 	if s.ClientAuthorizedKey != "" {
@@ -493,6 +649,7 @@ func (s *Server) Start() error {
 		logger.Infof("[runtime] brand: %s", s.BrandName)
 		logger.Infof("[runtime] gzssh: %s", s.Version)
 		logger.Infof("[runtime] server version: SSH-2.0-%s", s.ServerEchoVersion)
+		logger.Infof("")
 		if !s.IsRunInContainer {
 			logger.Infof("[runtime] mode: %s", "host")
 		} else {
@@ -515,10 +672,23 @@ func (s *Server) Start() error {
 			logger.Infof("[runtime] workdir: %s", s.WorkDir)
 		}
 		if s.AuthServer != "" {
-			logger.Infof("[runtime] auth server: %s", s.AuthServer)
+			if !s.QRCode {
+				logger.Infof("")
+				logger.Infof("[runtime] auth mode: %s", "auth-server")
+				logger.Infof("[runtime] auth server: %s", s.AuthServer)
+				logger.Infof("")
+			} else {
+				logger.Infof("")
+				logger.Infof("[runtime] auth mode: %s", "qrcode")
+				logger.Infof("[runtime] qrcode auth server: %s", s.AuthServer)
+				logger.Infof("[runtime] qrcode client id: %s", s.QRCodeClientID)
+				logger.Infof("[runtime] qrcode redirect uri: %s", s.QRCodeRedirectURI)
+				logger.Infof("")
+			}
 		}
 
 		logger.Infof("[runtime] sftp: %v", s.IsAllowSFTP)
+		logger.Infof("")
 		logger.Infof("[runtime] remote port forward: %v", s.IsAllowRemoteForward)
 		logger.Infof("[runtime] audit: %v", s.IsAllowAudit)
 
@@ -541,3 +711,40 @@ func (s *Server) Start() error {
 
 	return ssh.ListenAndServe(address, nil, options...)
 }
+
+// type QRCodeWriter struct {
+// 	io.ReadWriter
+// 	ch   chan []byte
+// 	done chan bool
+// }
+
+// func newQRCOdeWriter() *QRCodeWriter {
+// 	return &QRCodeWriter{
+// 		ch:   make(chan []byte),
+// 		done: make(chan bool),
+// 	}
+// }
+
+// func (q *QRCodeWriter) Write(p []byte) (n int, err error) {
+// 	q.ch <- p
+// 	return len(p), nil
+// }
+
+// func (q *QRCodeWriter) Read(p []byte) (n int, err error) {
+// 	n = copy(p, <-q.ch)
+
+// 	if n == 0 {
+// 		defer func() {
+// 			q.done <- true
+// 		}()
+
+// 		// end
+// 		return 0, io.EOF
+// 	}
+
+// 	return n, nil
+// }
+
+// func (q *QRCodeWriter) Done() chan bool {
+// 	return q.done
+// }
