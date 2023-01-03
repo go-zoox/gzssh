@@ -399,7 +399,7 @@ func (s *Server) Start() error {
 						break
 					} else {
 						// fmt.Printf("waiting for login(status: %s) ...\n", state.GetQRCodeStatus())
-						time.Sleep(3000)
+						time.Sleep(3 * time.Second)
 					}
 				}
 			}()
