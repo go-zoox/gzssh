@@ -692,19 +692,34 @@ func (s *Server) Start() error {
 		logger.Infof("[runtime] remote port forward: %v", s.IsAllowRemoteForward)
 		logger.Infof("[runtime] audit: %v", s.IsAllowAudit)
 
+		showResource := false
 		if s.Memory != "" {
+			if !showResource {
+				logger.Infof("")
+				showResource = true
+			}
 			logger.Infof("[runtime] memory: %s", s.Memory)
 		}
 		if s.CPUs != 0 {
+			if !showResource {
+				logger.Infof("")
+				showResource = true
+			}
 			logger.Infof("[runtime] cpu cores: %.2f", s.CPUs)
 		}
 		if s.CPUPercent != 0 {
+			if !showResource {
+				logger.Infof("")
+				showResource = true
+			}
 			logger.Infof("[runtime] cpu percent: %d", s.CPUPercent)
 		}
 		if s.IsHoneypot {
+			logger.Infof("")
 			logger.Infof("[runtime] honeypot: %v", true)
 		}
 
+		logger.Infof("")
 		logger.Infof("[runtime] starting ssh server at: %s ...", address)
 		return nil
 	})
