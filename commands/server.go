@@ -175,6 +175,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"AUTH_SERVER"},
 			},
 			&cli.BoolFlag{
+				Name:    "qrcode",
+				Usage:   "qrcode login, works with auth-server",
+				Aliases: []string{},
+				EnvVars: []string{"QRCode"},
+			},
+			&cli.BoolFlag{
 				Name:    "allow-sftp",
 				Usage:   "allow sftp server",
 				Aliases: []string{},
@@ -332,6 +338,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				BrandName: ctx.String("brand-name"),
 				//
 				AuthServer: ctx.String("auth-server"),
+				QRCode:     ctx.Bool("qrcode"),
 				//
 				Version: ctx.App.Version,
 				//

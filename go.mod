@@ -12,6 +12,8 @@ require (
 	github.com/go-zoox/fetch v1.5.5
 	github.com/go-zoox/fs v1.3.0
 	github.com/go-zoox/logger v1.3.1
+	github.com/go-zoox/uuid v0.0.1
+	github.com/mdp/qrterminal v1.0.1
 	github.com/pkg/sftp v1.13.5
 	golang.org/x/crypto v0.4.0
 	golang.org/x/term v0.3.0
@@ -28,7 +30,6 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-zoox/chalk v1.0.1 // indirect
 	github.com/go-zoox/core-utils v1.0.13 // indirect
-	github.com/go-zoox/uuid v0.0.1 // indirect
 	github.com/goccy/go-yaml v1.9.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
@@ -55,4 +56,5 @@ require (
 	golang.org/x/tools v0.1.12 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gotest.tools/v3 v3.4.0 // indirect
+	rsc.io/qr v0.2.0 // indirect
 )

@@ -11,7 +11,9 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/go-zoox/fetch"
 	"github.com/go-zoox/gzssh/server/sftp"
+	"github.com/go-zoox/gzssh/utils/qrcode"
 	"github.com/go-zoox/logger"
+	"github.com/go-zoox/uuid"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -156,6 +158,9 @@ type Server struct {
 
 	// AuthServer is used for verify user/pass, instead of user/pass
 	AuthServer string
+
+	// QRCode is qrcode login, should works with auth server
+	QRCode bool
 
 	// Version is the GzSSH Version
 	Version string
@@ -342,6 +347,35 @@ func (s *Server) Start() error {
 		remote := session.RemoteAddr().String()
 		exitCode := 0
 
+		if s.QRCode {
+			io.WriteString(session, fmt.Sprintf("SSH Auth via QRCode (Poweredby %s).\n", s.BrandName))
+			qrcodeID := uuid.V4()
+			qrcodeURL := fmt.Sprintf("http://qrcode.com/qrcode/%s", qrcodeID)
+
+			// qrcodeImage := newQRCOdeWriter()
+
+			// qrterminalCfg := qrterminal.Config{
+			// 	Level:     qrterminal.L,
+			// 	Writer:    os.Stdout,
+			// 	BlackChar: qrterminal.BLACK,
+			// 	WhiteChar: qrterminal.WHITE,
+			// 	QuietZone: 1,
+			// 	// Writer:    qrcodeImage,
+			// }
+			// qrterminalCfg.Writer = qrcodeImage
+			// go io.Copy(session, qrcodeImage)
+			// go qrterminal.GenerateWithConfig(qrcodeURL, qrterminalCfg)
+
+			// fmt.Println("Done 0")
+			// v := <-qrcodeImage.Done()
+			// fmt.Println("Done 1", v)
+
+			io.Copy(session, qrcode.New(qrcodeURL))
+
+			logger.Infof("[handle][user: %s][remote: %s] logined with qrcode ...", user, remote)
+			io.WriteString(session, fmt.Sprintf("\nWelcome %s, you have logined SSH.\n", user))
+		}
+
 		logger.Infof("[handle][user: %s][remote: %s] connected ...", user, remote)
 
 		if s.IsRunInContainer {
@@ -364,37 +398,62 @@ func (s *Server) Start() error {
 			return s.OnAuthentication(ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
 		}))
 	} else if s.AuthServer != "" {
-		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-			url := fmt.Sprintf("%s/login", s.AuthServer)
-			remote := ctx.RemoteAddr().String()
-			user := ctx.User()
+		// qrcode login
+		if s.QRCode {
+			options = append(options, func(s *ssh.Server) error {
+				originServerConfigCallback := s.ServerConfigCallback
 
-			response, err := fetch.Post(url, &fetch.Config{
-				Headers: map[string]string{
-					"content-type": "application/json",
-					"accept":       "application/json",
-					"user-agent":   fmt.Sprintf("gzssh/%s go-zoox_fetch/%s", s.Version, fetch.Version),
-				},
-				Body: map[string]string{
-					"from":     "gzssh",
-					"remote":   remote,
-					"username": user,
-					"password": pass,
-				},
+				s.ServerConfigCallback = func(ctx ssh.Context) *gossh.ServerConfig {
+					var cfg *gossh.ServerConfig
+					if originServerConfigCallback == nil {
+						cfg = &gossh.ServerConfig{}
+					} else {
+						cfg = originServerConfigCallback(ctx)
+					}
+
+					cfg.NoClientAuth = true
+
+					fmt.Println("cfg.NoClientAuth:", cfg.NoClientAuth)
+
+					return cfg
+				}
+
+				return nil
 			})
-			if err != nil {
-				logger.Errorf("failed to login with user(%s) to %s (err: %v)", user, url, err)
-				return false
-			}
+		} else {
+			// password login
+			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
+				url := fmt.Sprintf("%s/login", s.AuthServer)
+				remote := ctx.RemoteAddr().String()
+				user := ctx.User()
 
-			if !response.Ok() {
-				logger.Errorf("failed to login with user(%s) to %s (status: %d, response: %s)", user, url, response.Status, response.String())
-				return false
-			}
+				response, err := fetch.Post(url, &fetch.Config{
+					Headers: map[string]string{
+						"content-type": "application/json",
+						"accept":       "application/json",
+						"user-agent":   fmt.Sprintf("gzssh/%s go-zoox_fetch/%s", s.Version, fetch.Version),
+					},
+					Body: map[string]string{
+						"from":     "gzssh",
+						"remote":   remote,
+						"username": user,
+						"password": pass,
+					},
+				})
+				if err != nil {
+					logger.Errorf("failed to login with user(%s) to %s (err: %v)", user, url, err)
+					return false
+				}
 
-			logger.Infof("[auth: auth_server][user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
-			return true
-		}))
+				if !response.Ok() {
+					logger.Errorf("failed to login with user(%s) to %s (status: %d, response: %s)", user, url, response.Status, response.String())
+					return false
+				}
+
+				logger.Infof("[auth: auth_server][user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
+				return true
+			}))
+		}
 	}
 
 	if s.ClientAuthorizedKey != "" {
@@ -541,3 +600,40 @@ func (s *Server) Start() error {
 
 	return ssh.ListenAndServe(address, nil, options...)
 }
+
+// type QRCodeWriter struct {
+// 	io.ReadWriter
+// 	ch   chan []byte
+// 	done chan bool
+// }
+
+// func newQRCOdeWriter() *QRCodeWriter {
+// 	return &QRCodeWriter{
+// 		ch:   make(chan []byte),
+// 		done: make(chan bool),
+// 	}
+// }
+
+// func (q *QRCodeWriter) Write(p []byte) (n int, err error) {
+// 	q.ch <- p
+// 	return len(p), nil
+// }
+
+// func (q *QRCodeWriter) Read(p []byte) (n int, err error) {
+// 	n = copy(p, <-q.ch)
+
+// 	if n == 0 {
+// 		defer func() {
+// 			q.done <- true
+// 		}()
+
+// 		// end
+// 		return 0, io.EOF
+// 	}
+
+// 	return n, nil
+// }
+
+// func (q *QRCodeWriter) Done() chan bool {
+// 	return q.done
+// }
