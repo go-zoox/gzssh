@@ -163,19 +163,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		}
 	}
 
-	containerName := fmt.Sprintf("%s_%s_%d_%s", "gzssh", s.Version, time.Now().UnixMilli(), session.Context().SessionID())
-	if s.IsContainerRecoveryAllowed {
-		user := session.User()
-		remote := session.RemoteAddr().String()
-
-		ip := remote
-		parts := strings.Split(remote, ":")
-		if len(parts) >= 1 {
-			ip = parts[0]
-		}
-
-		containerName = fmt.Sprintf("%s_%s_recovery_%s_%s", "gzssh", s.Version, user, ip)
-	}
+	containerName := s.getContainerName(session)
 
 	var networkCfg *network.NetworkingConfig
 	if s.ContainerNetwork != "" {
@@ -206,6 +194,23 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	}
 
 	return int(status), err
+}
+
+func (s *Server) getContainerName(session ssh.Session) string {
+	user := session.User()
+	remote := session.RemoteAddr().String()
+	ip := remote
+	parts := strings.Split(remote, ":")
+	if len(parts) >= 1 {
+		ip = parts[0]
+	}
+
+	containerName := fmt.Sprintf("%s_%s_dynamic_%s_%s_%d_%s", "gzssh", s.Version, user, ip, time.Now().UnixMilli(), session.Context().SessionID())
+	if s.IsContainerRecoveryAllowed {
+		containerName = fmt.Sprintf("%s_%s_recovery_%s_%s", "gzssh", s.Version, user, ip)
+	}
+
+	return containerName
 }
 
 func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, networkCfg *network.NetworkingConfig, session ssh.Session, auditor *Auditor, containerName string) (status int64, cleanup func(), err error) {
