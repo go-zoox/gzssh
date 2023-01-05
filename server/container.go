@@ -75,7 +75,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		}
 	}
 
-	fmt.Println("commandsText:", commandsText)
+	// fmt.Println("commandsText:", commandsText)
 
 	if len(commandsText) != 0 {
 		cfg.Cmd = []string{"sh", "-c", commandsText}
