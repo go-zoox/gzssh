@@ -650,6 +650,7 @@ func (s *Server) Start() error {
 		logger.Infof("[runtime] gzssh: %s", s.Version)
 		logger.Infof("[runtime] server version: SSH-2.0-%s", s.ServerEchoVersion)
 		logger.Infof("")
+
 		if !s.IsRunInContainer {
 			logger.Infof("[runtime] mode: %s", "host")
 		} else {
@@ -670,6 +671,7 @@ func (s *Server) Start() error {
 		}
 		if s.WorkDir != "" {
 			logger.Infof("[runtime] workdir: %s", s.WorkDir)
+			logger.Infof("")
 		}
 		if s.AuthServer != "" {
 			if !s.QRCode {

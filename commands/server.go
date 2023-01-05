@@ -129,7 +129,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 			&cli.StringFlag{
 				Name:    "workdir",
 				Usage:   "the workdir",
-				Aliases: []string{},
+				Aliases: []string{"work-dir"},
 				EnvVars: []string{"WORKDIR"},
 			},
 			&cli.StringFlag{
@@ -207,7 +207,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 			&cli.BoolFlag{
 				Name:    "allow-audit",
 				Usage:   "allow audit",
-				Aliases: []string{},
+				Aliases: []string{"audit"},
 				EnvVars: []string{"ALLOW_AUDIT"},
 			},
 			&cli.BoolFlag{

@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -28,6 +29,17 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 		}
 		cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
 		cmd.Env = append(cmd.Env, fmt.Sprintf("EXECUTE_USER=%s", user))
+
+		if s.WorkDir != "" {
+			cmd.Dir = s.WorkDir
+		} else {
+			homedir, err := os.UserHomeDir()
+			if err != nil {
+				return -1, err
+			}
+
+			cmd.Dir = homedir
+		}
 
 		f, err := pty.Start(cmd)
 		if err != nil {
