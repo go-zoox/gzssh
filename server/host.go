@@ -12,6 +12,13 @@ import (
 )
 
 func (s *Server) runInHost(session ssh.Session) (int, error) {
+	if s.Shell == "" {
+		s.Shell = os.Getenv("SHELL")
+		if s.Shell == "" {
+			s.Shell = "sh"
+		}
+	}
+
 	ptyReq, windowCh, isPty := session.Pty()
 	user := session.User()
 	remote := session.RemoteAddr().String()

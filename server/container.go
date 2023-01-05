@@ -24,6 +24,10 @@ import (
 )
 
 func (s *Server) runInContainer(session ssh.Session) (int, error) {
+	if s.Shell == "" {
+		s.Shell = "sh"
+	}
+
 	user := session.User()
 	remote := session.RemoteAddr().String()
 	env := session.Environ()
@@ -57,17 +61,32 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		// User: "1000:1000",
 	}
 
-	commands := session.Command()
-	if len(commands) != 0 {
-		cfg.Cmd = []string{"sh", "-c", strings.Join(commands, " ")}
-
-		if s.auditor != nil {
-			for _, c := range commands {
-				auditor.Write(append([]byte(c), ' '))
-			}
-
-			auditor.Write([]byte{'\r'})
+	var commandsText string
+	if isPty {
+		if s.StartupCommand != "" {
+			commandsText = fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell)
 		}
+	} else {
+		commands := session.Command()
+		commandsText = strings.Join(commands, " ")
+
+		if len(commandsText) != 0 {
+			auditor.Write([]byte(commandsText + "\r"))
+		}
+	}
+
+	fmt.Println("commandsText:", commandsText)
+
+	if len(commandsText) != 0 {
+		cfg.Cmd = []string{"sh", "-c", commandsText}
+
+		// if s.auditor != nil {
+		// 	for _, c := range commands {
+		// 		auditor.Write(append([]byte(c), ' '))
+		// 	}
+
+		// 	auditor.Write([]byte{'\r'})
+		// }
 	}
 
 	hostCfg := &container.HostConfig{}

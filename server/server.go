@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -231,13 +230,6 @@ type Server struct {
 func (s *Server) Start() error {
 	if s.BrandName == "" {
 		s.BrandName = "GZSSH"
-	}
-
-	if s.Shell == "" {
-		s.Shell = os.Getenv("SHELL")
-		if s.Shell == "" {
-			s.Shell = "sh"
-		}
 	}
 
 	if s.IdleTimeout == 0 {
