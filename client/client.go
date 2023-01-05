@@ -31,7 +31,7 @@ type Client struct {
 	//
 	IsIgnoreStrictHostKeyChecking bool
 	//
-	IsOpenInBrowser bool
+	OpenInBrowserAddress string
 	//
 	IsAudit bool
 	//
@@ -109,8 +109,9 @@ func (c *Client) Connect() error {
 		sshConf.Auth = append(sshConf.Auth, ssh.PublicKeys(signer))
 	} else {
 		if c.Pass == "" && IsInteractive() {
-			fmt.Print("Enter password: ")
+			fmt.Printf("Enter password for %s@%s:%d: ", c.User, c.Host, c.Port)
 			c.Pass = ReadPasswordFromStdin()
+			fmt.Println("")
 		}
 
 		if c.Pass != "" {
@@ -119,7 +120,7 @@ func (c *Client) Connect() error {
 	}
 
 	// WebSSH: https://gitee.com/wida/webssh
-	if c.IsOpenInBrowser {
+	if c.OpenInBrowserAddress != "" {
 		return c.ServeAndOpenBrowser(sshConf)
 	}
 
@@ -242,7 +243,9 @@ func (c *Client) Connect() error {
 // }
 
 func (c *Client) ServeAndOpenBrowser(sshConf *ssh.ClientConfig) error {
-	return browser.Serve(":9999", func(zc *zoox.Context, wsConn *websocket.Conn) {
+	logger.Infof("Please visit browser: http://%s", c.OpenInBrowserAddress)
+
+	return browser.Serve(c.OpenInBrowserAddress, func(zc *zoox.Context, wsConn *websocket.Conn) {
 		sshClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port), sshConf)
 		if err != nil {
 			logger.Errorf("failed to dial ssh: %v", err)

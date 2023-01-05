@@ -62,10 +62,10 @@ func RegistryClient(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				Usage:   "whether ignore strict host key checking",
 			},
-			&cli.BoolFlag{
+			&cli.StringFlag{
 				Name:    "open-in-browser",
 				Aliases: []string{},
-				Usage:   "open terminal in browser",
+				Usage:   "open terminal in browser, Example: 127.0.0.1:9000",
 			},
 		},
 		Action: func(ctx *cli.Context) (err error) {
@@ -86,7 +86,7 @@ func RegistryClient(app *cli.MultipleProgram) {
 				PrivateKeySecret:              ctx.String("private-key-secret"),
 				KnowHostsFilePath:             ctx.String("known-hosts"),
 				IsIgnoreStrictHostKeyChecking: ctx.Bool("ignore-strict-host-key-checking"),
-				IsOpenInBrowser:               ctx.Bool("open-in-browser"),
+				OpenInBrowserAddress:          ctx.String("open-in-browser"),
 			}
 
 			return c.Connect()
