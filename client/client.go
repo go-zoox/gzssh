@@ -2,13 +2,20 @@ package client
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
+	"github.com/go-zoox/gzssh/client/browser"
+	"github.com/go-zoox/logger"
+	"github.com/go-zoox/zoox"
+	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"golang.org/x/term"
@@ -23,7 +30,12 @@ type Client struct {
 	PrivateKeySecret string
 	//
 	IsIgnoreStrictHostKeyChecking bool
-	KnowHostsFilePath             string
+	//
+	IsOpenInBrowser bool
+	//
+	IsAudit bool
+	//
+	KnowHostsFilePath string
 }
 
 func (c *Client) Connect() error {
@@ -35,7 +47,7 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("failed to read known_hosts: %v", err)
 	}
 
-	conf := &ssh.ClientConfig{
+	sshConf := &ssh.ClientConfig{
 		User: c.User,
 		// Auth:            []ssh.AuthMethod{},
 		// HostKeyCallback: hostkeyCallback,
@@ -94,7 +106,7 @@ func (c *Client) Connect() error {
 			}
 		}
 
-		conf.Auth = append(conf.Auth, ssh.PublicKeys(signer))
+		sshConf.Auth = append(sshConf.Auth, ssh.PublicKeys(signer))
 	} else {
 		if c.Pass == "" && IsInteractive() {
 			fmt.Print("Enter password: ")
@@ -102,22 +114,27 @@ func (c *Client) Connect() error {
 		}
 
 		if c.Pass != "" {
-			conf.Auth = append(conf.Auth, ssh.Password(c.Pass))
+			sshConf.Auth = append(sshConf.Auth, ssh.Password(c.Pass))
 		}
 	}
 
-	var conn *ssh.Client
+	// WebSSH: https://gitee.com/wida/webssh
+	if c.IsOpenInBrowser {
+		return c.ServeAndOpenBrowser(sshConf)
+	}
 
-	conn, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port), conf)
+	var sshClient *ssh.Client
+
+	sshClient, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port), sshConf)
 	if err != nil {
 		return fmt.Errorf("failed to dial ssh: %v", err)
 	}
-	defer conn.Close()
+	defer sshClient.Close()
 
 	var session *ssh.Session
 	var stdin io.WriteCloser
 
-	session, err = conn.NewSession()
+	session, err = sshClient.NewSession()
 	if err != nil {
 		return fmt.Errorf("failed to create new session: %v", err)
 	}
@@ -189,3 +206,161 @@ func (c *Client) Connect() error {
 		fmt.Fprint(stdin, str)
 	}
 }
+
+// func (c *Client) runTerminal(sshClient *ssh.Client, shell string, stdout, stderr io.Writer, stdin io.Reader, w, h int, wsConn *zoox.WebSocketConn) error {
+// 	if sshClient == nil {
+// 		return fmt.Errorf("ssh client is not ready")
+// 	}
+
+// 	sshSession, err := sshClient.NewSession()
+// 	if err != nil {
+// 		logger.Error(err.Error())
+// 		return err
+// 	}
+
+// 	defer func() {
+// 		_ = sshSession.Close()
+// 	}()
+
+// 	sshSession.Stdout = stdout
+// 	sshSession.Stderr = stderr
+// 	sshSession.Stdin = stdin
+
+// 	modes := ssh.TerminalModes{}
+
+// 	if err := sshSession.RequestPty("xterm-256color", h, w, modes); err != nil {
+// 		return err
+// 	}
+
+// 	err = sshSession.Run(shell)
+// 	if err != nil {
+// 		logger.Errorf("ssh session run shell error: %v", err)
+// 		return err
+// 	}
+
+// 	return nil
+// }
+
+func (c *Client) ServeAndOpenBrowser(sshConf *ssh.ClientConfig) error {
+	return browser.Serve(":9999", func(zc *zoox.Context, wsConn *websocket.Conn) {
+		sshClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port), sshConf)
+		if err != nil {
+			logger.Errorf("failed to dial ssh: %v", err)
+			return
+		}
+		defer sshClient.Close()
+
+		// go io.Copy(session, client.WebSocketConn)
+
+		// wsStdin := &WsStin{
+		// 	Stream: make(chan []byte),
+		// 	Err:    make(chan error),
+		// }
+
+		// session.Stdin = wsStdin
+		// session.Stdout = &WsStdout{Client: client}
+		// session.Stderr = &WsStdout{Client: client}
+
+		// client.OnTextMessage = func(msg []byte) {
+		// 	if _, err := session.Stdout.Write(msg); err != nil {
+		// 		ctx.Logger.Warn("failed to write to session")
+		// 	}
+
+		// 	wsStdin.Stream <- msg
+		// }
+
+		// // go io.Copy(session.StdinPipe(), client.WebSocketConn)
+		// isTerminalCreated := false
+
+		// client.OnTextMessage = func(msg []byte) {
+		// 	if !isTerminalCreated {
+		// 		isTerminalCreated = true
+
+		// 		c.runTerminal(
+		// 			sshClient,
+		// 			"sh",
+		// 			client.WebSocketConn,
+		// 			client.WebSocketConn,
+		// 			client.WebSocketConn,
+		// 			cols*10,
+		// 			rows*10,
+		// 		)
+		// 		return
+		// 	}
+		// 	fmt.Println("receive message:", string(msg))
+		// }
+
+		var recorder *Recorder
+		if c.IsAudit {
+			recorder = NewRecorder(os.Stdout)
+		}
+
+		turn, err := NewTurn(wsConn, sshClient, recorder)
+		if err != nil {
+			wsConn.Close()
+			return
+		}
+		defer turn.Close()
+		go func() {
+			closed := false
+			wsConn.SetCloseHandler(func(code int, text string) error {
+				if closed {
+					return nil
+				}
+
+				closed = true
+				return turn.Close()
+			})
+		}()
+
+		var logBuff = bufPool.Get().(*bytes.Buffer)
+		logBuff.Reset()
+		defer bufPool.Put(logBuff)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			err := turn.LoopRead(logBuff, ctx)
+			if err != nil {
+				logger.Infof("loop read error: %#v", err)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			err := turn.SessionWait()
+			if err != nil {
+				logger.Infof("session wait error: %#v", err)
+			}
+			cancel()
+		}()
+		wg.Wait()
+	})
+}
+
+// type WsStdout struct {
+// 	io.Writer
+
+// 	Client *zoox.WebSocketClient
+// }
+
+// func (w *WsStdout) Write(p []byte) (n int, err error) {
+// 	if err = w.Client.WriteText(p); err != nil {
+// 		return 0, err
+// 	}
+
+// 	return len(p), nil
+// }
+
+// type WsStin struct {
+// 	io.Reader
+
+// 	Stream chan []byte
+// 	Err    chan error
+// }
+
+// func (w *WsStin) Read(p []byte) (n int, err error) {
+// 	n = copy(p, <-w.Stream)
+// 	return n, nil
+// }

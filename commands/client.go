@@ -16,21 +16,24 @@ func RegistryClient(app *cli.MultipleProgram) {
 		Usage: "start a ssh client",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:    "host",
-				Usage:   "server host",
-				EnvVars: []string{"HOST"},
+				Name:     "host",
+				Usage:    "server host",
+				EnvVars:  []string{"HOST"},
+				Required: true,
 			},
 			&cli.IntFlag{
 				Name:    "port",
 				Usage:   "server port",
 				Aliases: []string{"p"},
 				EnvVars: []string{"PORT"},
+				Value:   22,
 			},
 			&cli.StringFlag{
 				Name:    "user",
 				Usage:   "server user",
 				Aliases: []string{"u"},
-				EnvVars: []string{"USER"},
+				// EnvVars: []string{"USER"},
+				Required: true,
 			},
 			&cli.StringFlag{
 				Name:    "pass",
@@ -58,7 +61,11 @@ func RegistryClient(app *cli.MultipleProgram) {
 				Name:    "ignore-strict-host-key-checking",
 				Aliases: []string{},
 				Usage:   "whether ignore strict host key checking",
-				Value:   false,
+			},
+			&cli.BoolFlag{
+				Name:    "open-in-browser",
+				Aliases: []string{},
+				Usage:   "open terminal in browser",
 			},
 		},
 		Action: func(ctx *cli.Context) (err error) {
@@ -79,6 +86,7 @@ func RegistryClient(app *cli.MultipleProgram) {
 				PrivateKeySecret:              ctx.String("private-key-secret"),
 				KnowHostsFilePath:             ctx.String("known-hosts"),
 				IsIgnoreStrictHostKeyChecking: ctx.Bool("ignore-strict-host-key-checking"),
+				IsOpenInBrowser:               ctx.Bool("open-in-browser"),
 			}
 
 			return c.Connect()
