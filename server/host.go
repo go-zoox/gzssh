@@ -82,7 +82,18 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 		} else {
 			writers = terminal
 		}
-		go io.Copy(writers, session)  // stdin
+
+		if !s.IsNotAllowClientWrite {
+			go io.Copy(writers, session) // stdin
+		} else {
+			// ctrl + c is allow
+			io.Copy(&ExitSessionWriter{
+				CloseHandler: func() {
+					terminal.Close()
+				},
+			}, session) // stdin
+		}
+
 		go io.Copy(session, terminal) // stdout
 
 		// var writers io.Writer

@@ -44,6 +44,11 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"STARTUP_COMMAND"},
 			},
 			&cli.BoolFlag{
+				Name:    "no-write",
+				Usage:   "no allow client to input command, only subscribe server response, require startup-command not empty",
+				EnvVars: []string{"NO_WRITE"},
+			},
+			&cli.BoolFlag{
 				Name:    "run-in-container",
 				Usage:   "should run user session in container",
 				Aliases: []string{},
@@ -332,7 +337,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				User: ctx.String("user"),
 				Pass: ctx.String("pass"),
 				// startup
-				StartupCommand: ctx.String("startup-command"),
+				StartupCommand:        ctx.String("startup-command"),
+				IsNotAllowClientWrite: ctx.Bool("no-write"),
 				// OnAuthentication: func(user, pass string) bool {
 				// 	return ctx.String("user") == user && ctx.String("pass") == pass
 				// },

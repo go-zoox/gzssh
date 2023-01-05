@@ -64,7 +64,11 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 	var commandsText string
 	if isPty {
 		if s.StartupCommand != "" {
-			commandsText = fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell)
+			if !s.IsNotAllowClientWrite {
+				commandsText = fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell)
+			} else {
+				commandsText = s.StartupCommand
+			}
 		}
 	} else {
 		commands := session.Command()
@@ -238,6 +242,8 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	if err != nil {
 		return
 	}
+
+	fmt.Println("cmd:", cfg.Cmd)
 
 	status = 0
 	cleanup = func() {}
@@ -440,6 +446,16 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}()
 
 	go func() {
+		if s.IsNotAllowClientWrite {
+			// ctrl + c is allow
+			io.Copy(&ExitSessionWriter{
+				CloseHandler: func() {
+					stream.CloseWrite()
+				},
+			}, session) // stdin
+			return
+		}
+
 		defer stream.CloseWrite()
 		var writers io.Writer
 		if auditor != nil {
@@ -448,7 +464,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 			writers = stream.Conn
 		}
 
-		io.Copy(writers, session)
+		io.Copy(writers, session) // stdin
 	}()
 
 	err = docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{})

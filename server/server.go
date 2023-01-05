@@ -125,7 +125,8 @@ type Server struct {
 	User string
 	Pass string
 
-	StartupCommand string
+	StartupCommand        string
+	IsNotAllowClientWrite bool
 
 	//
 	IsRunInContainer bool
@@ -234,6 +235,10 @@ func (s *Server) Start() error {
 
 	if s.IdleTimeout == 0 {
 		s.IdleTimeout = 60
+	}
+
+	if s.IsNotAllowClientWrite && s.StartupCommand == "" {
+		return fmt.Errorf("startup command not set, --no-write should work with --startup-command")
 	}
 
 	if s.Environment == nil {
