@@ -31,12 +31,25 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 	if isPty {
 		var cmd *exec.Cmd
 
-		if s.StartupCommand == "" {
-			// commands = append([]string{s.StartupCommand}, commands...)
-			cmd = exec.Command(s.Shell)
+		var mergedCommand string
+		if isPty {
+			if s.StartupCommand != "" {
+				if !s.IsNotAllowClientWrite {
+					mergedCommand = fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell)
+				} else {
+					mergedCommand = s.StartupCommand
+				}
+			}
 		} else {
-			cmd = exec.Command("sh", "-c", fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell))
+			commands := session.Command()
+			mergedCommand = strings.Join(commands, " ")
+
+			if len(mergedCommand) != 0 {
+				auditor.Write([]byte(mergedCommand + "\r"))
+			}
 		}
+
+		cmd = exec.Command("sh", "-c", mergedCommand)
 
 		for k, v := range s.Environment {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
@@ -83,15 +96,16 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 			writers = terminal
 		}
 
-		if !s.IsNotAllowClientWrite {
-			go io.Copy(writers, session) // stdin
-		} else {
+		if s.IsNotAllowClientWrite {
 			// ctrl + c is allow
-			io.Copy(&ExitSessionWriter{
+			go io.Copy(&ExitSessionWriter{
 				CloseHandler: func() {
+					session.Close()
 					terminal.Close()
 				},
 			}, session) // stdin
+		} else {
+			go io.Copy(writers, session) // stdin
 		}
 
 		go io.Copy(session, terminal) // stdout

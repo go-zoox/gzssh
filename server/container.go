@@ -61,28 +61,28 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		// User: "1000:1000",
 	}
 
-	var commandsText string
+	var mergedCommand string
 	if isPty {
 		if s.StartupCommand != "" {
 			if !s.IsNotAllowClientWrite {
-				commandsText = fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell)
+				mergedCommand = fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell)
 			} else {
-				commandsText = s.StartupCommand
+				mergedCommand = s.StartupCommand
 			}
 		}
 	} else {
 		commands := session.Command()
-		commandsText = strings.Join(commands, " ")
+		mergedCommand = strings.Join(commands, " ")
 
-		if len(commandsText) != 0 {
-			auditor.Write([]byte(commandsText + "\r"))
+		if len(mergedCommand) != 0 {
+			auditor.Write([]byte(mergedCommand + "\r"))
 		}
 	}
 
 	// fmt.Println("commandsText:", commandsText)
 
-	if len(commandsText) != 0 {
-		cfg.Cmd = []string{"sh", "-c", commandsText}
+	if len(mergedCommand) != 0 {
+		cfg.Cmd = []string{"sh", "-c", mergedCommand}
 
 		// if s.auditor != nil {
 		// 	for _, c := range commands {
@@ -243,7 +243,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 		return
 	}
 
-	fmt.Println("cmd:", cfg.Cmd)
+	// fmt.Println("cmd:", cfg.Cmd)
 
 	status = 0
 	cleanup = func() {}
@@ -450,6 +450,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 			// ctrl + c is allow
 			io.Copy(&ExitSessionWriter{
 				CloseHandler: func() {
+					session.Close()
 					stream.CloseWrite()
 				},
 			}, session) // stdin
