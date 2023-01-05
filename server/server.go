@@ -126,6 +126,8 @@ type Server struct {
 	User string
 	Pass string
 
+	StartupCommand string
+
 	//
 	IsRunInContainer bool
 	// cleanup container => 1. destroy container / 2. stop container

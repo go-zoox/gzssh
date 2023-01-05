@@ -22,7 +22,14 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 
 	// 1. interfactive
 	if isPty {
-		cmd := exec.Command(s.Shell)
+		var cmd *exec.Cmd
+
+		if s.StartupCommand == "" {
+			// commands = append([]string{s.StartupCommand}, commands...)
+			cmd = exec.Command(s.Shell)
+		} else {
+			cmd = exec.Command("sh", "-c", fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell))
+		}
 
 		for k, v := range s.Environment {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))

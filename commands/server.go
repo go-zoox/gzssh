@@ -38,6 +38,11 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "server pass",
 				EnvVars: []string{"PASS"},
 			},
+			&cli.StringFlag{
+				Name:    "startup-command",
+				Usage:   "run command from startup, only works in pty",
+				EnvVars: []string{"STARTUP_COMMAND"},
+			},
 			&cli.BoolFlag{
 				Name:    "run-in-container",
 				Usage:   "should run user session in container",
@@ -326,6 +331,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Port: ctx.Int("port"),
 				User: ctx.String("user"),
 				Pass: ctx.String("pass"),
+				// startup
+				StartupCommand: ctx.String("startup-command"),
 				// OnAuthentication: func(user, pass string) bool {
 				// 	return ctx.String("user") == user && ctx.String("pass") == pass
 				// },
