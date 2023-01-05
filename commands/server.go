@@ -133,6 +133,11 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"WORKDIR"},
 			},
 			&cli.StringFlag{
+				Name:    "permission-dir",
+				Usage:   "the permission dir, which must be based on workdir",
+				EnvVars: []string{"PERMISSION_DIR"},
+			},
+			&cli.StringFlag{
 				Name:    "private-key",
 				Usage:   "the server private key, which is privakey key, used for sign host key",
 				Aliases: []string{},
@@ -337,6 +342,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				ContainerNetwork:                       ctx.String("container-network"),
 				ContainerMaxAge:                        ctx.Int("container-max-age"),
 				WorkDir:                                ctx.String("workdir"),
+				PermissionDir:                          ctx.String("permission-dir"),
 				Image:                                  ctx.String("image"),
 				ImageRegistryUser:                      ctx.String("image-registry-user"),
 				ImageRegistryPass:                      ctx.String("image-registry-pass"),

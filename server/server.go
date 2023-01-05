@@ -57,6 +57,8 @@ type Auditor struct {
 }
 
 func (a *Auditor) Write(p []byte) (n int, err error) {
+	n = len(p)
+
 	// fmt.Println(p)
 
 	for _, b := range p {
@@ -73,19 +75,28 @@ func (a *Auditor) Write(p []byte) (n int, err error) {
 
 		// delete
 		if b == 127 {
-			if len(a.buf)-2 < 0 {
-				a.buf = nil
-			} else {
-				a.buf = a.buf[:len(a.buf)-2]
+			bufLength := len(a.buf)
+			if a.buf == nil {
+				continue
 			}
-		} else if b == 9 {
-			// tab
+
+			if bufLength >= 1 {
+				a.buf = a.buf[:len(a.buf)-1]
+			}
 		} else {
-			a.buf = append(a.buf, b)
+			// // ignore
+			// if b == 9 {
+			// 	// tab
+			// 	continue
+			// }
+
+			if _, ok := LEGAL_CHARS_MAPPING[b]; ok {
+				a.buf = append(a.buf, b)
+			}
 		}
 	}
 
-	return len(p), nil
+	return
 }
 
 func CreateDefaultAuditor(auditFn func(user string, remote string, isPty bool, command string)) func(user string, remote string, isPty bool) *Auditor {
@@ -137,6 +148,7 @@ type Server struct {
 	//  unit: seconds, default: 3600 (1h)
 	ContainerMaxAge int
 	WorkDir         string
+	PermissionDir   string
 	// Container Image
 	Image string
 	// Container Image Registry User
@@ -729,39 +741,12 @@ func (s *Server) Start() error {
 	return ssh.ListenAndServe(address, nil, options...)
 }
 
-// type QRCodeWriter struct {
-// 	io.ReadWriter
-// 	ch   chan []byte
-// 	done chan bool
-// }
+var LEGAL_CHARS_MAPPING = map[byte]bool{}
 
-// func newQRCOdeWriter() *QRCodeWriter {
-// 	return &QRCodeWriter{
-// 		ch:   make(chan []byte),
-// 		done: make(chan bool),
-// 	}
-// }
+var LEGAL_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+`~<>,.;':\"[]{}\\| \t\v"
 
-// func (q *QRCodeWriter) Write(p []byte) (n int, err error) {
-// 	q.ch <- p
-// 	return len(p), nil
-// }
-
-// func (q *QRCodeWriter) Read(p []byte) (n int, err error) {
-// 	n = copy(p, <-q.ch)
-
-// 	if n == 0 {
-// 		defer func() {
-// 			q.done <- true
-// 		}()
-
-// 		// end
-// 		return 0, io.EOF
-// 	}
-
-// 	return n, nil
-// }
-
-// func (q *QRCodeWriter) Done() chan bool {
-// 	return q.done
-// }
+func init() {
+	for _, char := range LEGAL_CHARS {
+		LEGAL_CHARS_MAPPING[byte(char)] = true
+	}
+}

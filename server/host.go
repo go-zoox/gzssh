@@ -30,9 +30,7 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
 		cmd.Env = append(cmd.Env, fmt.Sprintf("EXECUTE_USER=%s", user))
 
-		if s.WorkDir != "" {
-			cmd.Dir = s.WorkDir
-		} else {
+		if s.WorkDir == "" {
 			homedir, err := os.UserHomeDir()
 			if err != nil {
 				return -1, err
@@ -41,25 +39,46 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 			cmd.Dir = homedir
 		}
 
-		f, err := pty.Start(cmd)
+		cmd.Dir = s.WorkDir
+
+		if s.PermissionDir != "" {
+			if s.WorkDir == "" {
+				return -1, fmt.Errorf("if use permission dir, work dir is required")
+			}
+		}
+
+		if !strings.HasPrefix(s.WorkDir, s.PermissionDir) {
+			return -1, fmt.Errorf("permission dir(%s) must based on work dir(%s)", s.PermissionDir, s.WorkDir)
+		}
+
+		terminal, err := pty.Start(cmd)
 		if err != nil {
 			return 1, err
 		}
 
 		go func() {
 			for window := range windowCh {
-				setWindowSize(f, window.Width, window.Height)
+				setWindowSize(terminal, window.Width, window.Height)
 			}
 		}()
 
 		var writers io.Writer
 		if auditor != nil {
-			writers = io.MultiWriter(f, auditor)
+			writers = io.MultiWriter(terminal, auditor)
 		} else {
-			writers = f
+			writers = terminal
 		}
-		go io.Copy(writers, session) // stdin
-		go io.Copy(session, f)       // stdout
+		go io.Copy(writers, session)  // stdin
+		go io.Copy(session, terminal) // stdout
+
+		// var writers io.Writer
+		// if auditor != nil {
+		// 	writers = io.MultiWriter(session, auditor)
+		// } else {
+		// 	writers = session
+		// }
+		// go io.Copy(f, session) // stdin
+		// go io.Copy(writers, f) // stdout
 
 		cmd.Wait()
 		return cmd.ProcessState.ExitCode(), nil
@@ -97,4 +116,13 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 	// 2.2 Disable pseudo-terminal allocation.
 	io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with %s.\n", session.User(), s.BrandName))
 	return 0, nil
+}
+
+type TW struct {
+	io.Writer
+}
+
+func (t *TW) Write(p []byte) (n int, err error) {
+	fmt.Println("out:", string(p))
+	return len(p), nil
 }
