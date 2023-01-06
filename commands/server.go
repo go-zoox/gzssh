@@ -226,7 +226,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"AUDIT"},
 			},
 			&cli.StringFlag{
-				Name:    "audit-logdir",
+				Name:    "audit-log-dir",
 				Usage:   "the log file to write audit",
 				Aliases: []string{},
 				EnvVars: []string{"AUDIT_LOG_DIR"},
