@@ -734,7 +734,11 @@ func (s *Server) Start() error {
 		logger.Infof("[runtime] sftp: %v", s.IsAllowSFTP)
 		logger.Infof("")
 		logger.Infof("[runtime] remote port forward: %v", s.IsAllowRemoteForward)
+
 		logger.Infof("[runtime] audit: %v", s.IsAllowAudit)
+		if s.IsAllowAudit {
+			logger.Infof("[runtime] audit log dir: %v", s.AuditLogDir)
+		}
 
 		showResource := false
 		if s.Memory != "" {
