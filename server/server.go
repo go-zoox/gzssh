@@ -5,7 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
-	"strings"
+	"os"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -44,7 +44,7 @@ func CreateDefaultOnAuthentication(defaultUser, defaultPass string, isShowUserPa
 type Auditor struct {
 	io.Writer
 
-	Print func(user string, remote string, isPty bool, command string)
+	Log func(user string, remote string, isPty bool, log []byte)
 
 	User string
 
@@ -52,7 +52,7 @@ type Auditor struct {
 
 	IsPty bool
 
-	buf []byte
+	// buf []byte
 }
 
 func (a *Auditor) Write(p []byte) (n int, err error) {
@@ -60,48 +60,52 @@ func (a *Auditor) Write(p []byte) (n int, err error) {
 
 	// fmt.Println(p)
 
-	for _, b := range p {
-		// enter '\r'
-		if b == 13 {
-			command := strings.TrimSpace(string(a.buf))
-			if len(command) != 0 {
-				a.Print(a.User, a.Remote, a.IsPty, command)
-			}
+	// for _, b := range p {
+	// 	// enter '\r'
+	// 	if b == 13 {
+	// 		command := strings.TrimSpace(string(a.buf))
+	// 		if len(command) != 0 {
+	// 			a.Log(a.User, a.Remote, a.IsPty, command)
+	// 		}
 
-			a.buf = nil
-			continue
-		}
+	// 		a.buf = nil
+	// 		continue
+	// 	}
 
-		// delete
-		if b == 127 {
-			bufLength := len(a.buf)
-			if a.buf == nil {
-				continue
-			}
+	// 	// delete
+	// 	if b == 127 {
+	// 		bufLength := len(a.buf)
+	// 		if a.buf == nil {
+	// 			continue
+	// 		}
 
-			if bufLength >= 1 {
-				a.buf = a.buf[:len(a.buf)-1]
-			}
-		} else {
-			// // ignore
-			// if b == 9 {
-			// 	// tab
-			// 	continue
-			// }
+	// 		if bufLength >= 1 {
+	// 			a.buf = a.buf[:len(a.buf)-1]
+	// 		}
+	// 	} else {
+	// 		// // ignore
+	// 		// if b == 9 {
+	// 		// 	// tab
+	// 		// 	continue
+	// 		// }
 
-			if _, ok := LEGAL_CHARS_MAPPING[b]; ok {
-				a.buf = append(a.buf, b)
-			}
-		}
+	// 		if _, ok := LEGAL_CHARS_MAPPING[b]; ok {
+	// 			a.buf = append(a.buf, b)
+	// 		}
+	// 	}
+	// }
+
+	if n != 0 {
+		a.Log(a.User, a.Remote, a.IsPty, p)
 	}
 
 	return
 }
 
-func CreateDefaultAuditor(auditFn func(user string, remote string, isPty bool, command string)) func(user string, remote string, isPty bool) *Auditor {
+func CreateDefaultAuditor(auditFn func(user string, remote string, isPty bool, log []byte)) func(user string, remote string, isPty bool) *Auditor {
 	return func(user string, remote string, isPty bool) *Auditor {
 		return &Auditor{
-			Print:  auditFn,
+			Log:    auditFn,
 			User:   user,
 			Remote: remote,
 			IsPty:  isPty,
@@ -120,7 +124,7 @@ type Server struct {
 	MaxTimeout int
 	//
 	OnAuthentication func(remote, version, user, pass string) bool
-	OnAudit          func(user string, remote string, isPty bool, command string)
+	OnAudit          func(user string, remote string, isPty bool, log []byte)
 	//
 	User string
 	Pass string
@@ -202,6 +206,7 @@ type Server struct {
 
 	//
 	IsAllowAudit bool
+	AuditLogDir  string
 
 	// IsHoneypot works as a honey pot
 	IsHoneypot             bool
@@ -351,9 +356,35 @@ func (s *Server) Start() error {
 	}
 
 	if s.IsAllowAudit {
+		if s.AuditLogDir != "" {
+			if err := os.MkdirAll(s.AuditLogDir, 0766); err != nil {
+				return fmt.Errorf("failed to create audit log dir(%s): %s", s.AuditLogDir, err)
+			}
+		}
+
 		if s.OnAudit == nil {
-			s.OnAudit = func(user string, remote string, isPty bool, command string) {
-				logger.Infof("[audit][user: %s][remote: %s][pty: %v] %s", user, remote, isPty, command)
+			s.OnAudit = func(user string, remote string, isPty bool, log []byte) {
+				if s.AuditLogDir != "" {
+					var logFilepath string
+					if isPty {
+						logFilepath = fmt.Sprintf("%s/audit_%s_%s_pty.log", s.AuditLogDir, user, remote)
+					} else {
+						logFilepath = fmt.Sprintf("%s/audit_%s_%s_nopty.log", s.AuditLogDir, user, remote)
+					}
+
+					f, err := os.OpenFile(logFilepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0766)
+					if err != nil {
+						logger.Errorf("failed to open audit log file(%s): %v", logFilepath, err)
+						return
+					}
+
+					if _, err := f.Write(log); err != nil {
+						logger.Warnf("failed to write audit log to %s (err: %v).", s.AuditLogDir, err)
+					}
+				} else {
+					logger.Infof("[audit][user: %s][remote: %s][pty: %v] %s", user, remote, isPty, log)
+				}
+
 			}
 		}
 	}

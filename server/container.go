@@ -433,7 +433,14 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	go func() {
 		var err error
 		if cfg.Tty {
-			_, err = io.Copy(session, stream.Reader)
+			// _, err = io.Copy(session, stream.Reader)
+			var sessionWriters io.Writer
+			if auditor != nil {
+				sessionWriters = io.MultiWriter(session, auditor)
+			} else {
+				sessionWriters = session
+			}
+			go io.Copy(sessionWriters, stream.Reader) // stdout
 		} else {
 			if len(session.Command()) != 0 {
 				_, err = stdcopy.StdCopy(session, session.Stderr(), stream.Reader)
@@ -458,14 +465,16 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 		}
 
 		defer stream.CloseWrite()
-		var writers io.Writer
-		if auditor != nil {
-			writers = io.MultiWriter(stream.Conn, auditor)
-		} else {
-			writers = stream.Conn
-		}
 
-		io.Copy(writers, session) // stdin
+		// var terminalWriters io.Writer
+		// if auditor != nil {
+		// 	terminalWriters = io.MultiWriter(stream.Conn, auditor)
+		// } else {
+		// 	terminalWriters = stream.Conn
+		// }
+		// io.Copy(terminalWriters, session) // stdin
+
+		io.Copy(stream.Conn, session)
 	}()
 
 	err = docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{})

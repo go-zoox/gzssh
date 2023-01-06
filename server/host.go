@@ -95,12 +95,12 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 			}
 		}()
 
-		var writers io.Writer
-		if auditor != nil {
-			writers = io.MultiWriter(terminal, auditor)
-		} else {
-			writers = terminal
-		}
+		// var terminalWriters io.Writer
+		// if auditor != nil {
+		// 	terminalWriters = io.MultiWriter(terminal, auditor)
+		// } else {
+		// 	terminalWriters = terminal
+		// }
 
 		if s.IsNotAllowClientWrite {
 			// ctrl + c is allow
@@ -111,10 +111,17 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 				},
 			}, session) // stdin
 		} else {
-			go io.Copy(writers, session) // stdin
+			// go io.Copy(terminalWriters, session) // stdin
+			go io.Copy(terminal, session) // stdin
 		}
 
-		go io.Copy(session, terminal) // stdout
+		var sessionWriters io.Writer
+		if auditor != nil {
+			sessionWriters = io.MultiWriter(session, auditor)
+		} else {
+			sessionWriters = session
+		}
+		go io.Copy(sessionWriters, terminal) // stdout
 
 		// var writers io.Writer
 		// if auditor != nil {
