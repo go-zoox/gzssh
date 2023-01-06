@@ -19,6 +19,16 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 		}
 	}
 
+	if s.PermissionDir != "" {
+		if s.WorkDir == "" {
+			return -1, fmt.Errorf("if use permission dir, work dir is required")
+		}
+	}
+
+	if !strings.HasPrefix(s.WorkDir, s.PermissionDir) {
+		return -1, fmt.Errorf("permission dir(%s) must based on work dir(%s)", s.PermissionDir, s.WorkDir)
+	}
+
 	ptyReq, windowCh, isPty := session.Pty()
 	user := session.User()
 	remote := session.RemoteAddr().String()
@@ -31,25 +41,31 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 	if isPty {
 		var cmd *exec.Cmd
 
-		var mergedCommand string
+		commands := []string{}
 		if isPty {
 			if s.StartupCommand != "" {
+				commands = append(commands, s.StartupCommand)
+
 				if !s.IsNotAllowClientWrite {
-					mergedCommand = fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell)
-				} else {
-					mergedCommand = s.StartupCommand
+					// mergedCommand = fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell)
+					commands = append(commands, s.Shell)
 				}
 			}
 		} else {
-			commands := session.Command()
-			mergedCommand = strings.Join(commands, " ")
+			sessionCommands := session.Command()
+			if len(sessionCommands) != 0 {
+				mergedSessionCommand := strings.Join(sessionCommands, " ")
+				commands = append(commands, mergedSessionCommand)
 
-			if len(mergedCommand) != 0 {
-				auditor.Write([]byte(mergedCommand + "\r"))
+				auditor.Write([]byte(mergedSessionCommand + "\r"))
 			}
 		}
 
-		cmd = exec.Command("sh", "-c", mergedCommand)
+		if len(commands) != 0 {
+			cmd = exec.Command("sh", "-c", strings.Join(commands, " && "))
+		} else {
+			cmd = exec.Command(s.Shell)
+		}
 
 		for k, v := range s.Environment {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
@@ -67,16 +83,6 @@ func (s *Server) runInHost(session ssh.Session) (int, error) {
 		}
 
 		cmd.Dir = s.WorkDir
-
-		if s.PermissionDir != "" {
-			if s.WorkDir == "" {
-				return -1, fmt.Errorf("if use permission dir, work dir is required")
-			}
-		}
-
-		if !strings.HasPrefix(s.WorkDir, s.PermissionDir) {
-			return -1, fmt.Errorf("permission dir(%s) must based on work dir(%s)", s.PermissionDir, s.WorkDir)
-		}
 
 		terminal, err := pty.Start(cmd)
 		if err != nil {
