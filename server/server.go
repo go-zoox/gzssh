@@ -4,18 +4,14 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"os"
 	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/go-zoox/datetime"
-	"github.com/go-zoox/fetch"
-	"github.com/go-zoox/gzssh/server/sftp"
 	oauthqrcode "github.com/go-zoox/gzssh/utils/oauth-qrcode"
 	"github.com/go-zoox/gzssh/utils/qrcode"
 	"github.com/go-zoox/logger"
-	gossh "golang.org/x/crypto/ssh"
 )
 
 func CreateDefaultOnAuthentication(defaultUser, defaultPass string, isShowUserPass bool) func(remote, version, user, pass string) bool {
@@ -137,9 +133,9 @@ type Server struct {
 	// cleanup container => 1. destroy container / 2. stop container
 	IsContainerAutoCleanupWhenExitDisabled bool
 	// destory container based on cleanup
-	IsContainerAutoRemoveWhenExitDisabled bool
-	IsContainerRecoveryAllowed            bool
-	IsContainerRecoveryDisabled           bool
+	IsContainerAutoDestroyImmediatelyWhenExit bool
+	//
+	IsContainerRecoveryDisabled bool
 	// IsContainerPrivilegeAllowed means docker container privileged
 	IsContainerPrivilegeAllowed bool
 	// IsContainerReadonly means docker container readonly rootfs
@@ -234,21 +230,10 @@ type Server struct {
 }
 
 func (s *Server) Start() error {
-	if s.BrandName == "" {
-		s.BrandName = "GZSSH"
+	if err := s.defaults(); err != nil {
+		return fmt.Errorf("failed to set defaults: %s", err)
 	}
 
-	if s.IdleTimeout == 0 {
-		s.IdleTimeout = 60
-	}
-
-	if s.IsNotAllowClientWrite && s.StartupCommand == "" {
-		return fmt.Errorf("startup command not set, --no-write should work with --startup-command")
-	}
-
-	if s.Environment == nil {
-		s.Environment = map[string]string{}
-	}
 	s.Environment["SERVER_BRAND_TYPE_NAME"] = "GZSSH"
 	s.Environment["SERVER_BRAND_TYPE_VERSION"] = s.Version
 	s.Environment["SERVER_BRAND_NAME"] = s.BrandName
@@ -258,80 +243,15 @@ func (s *Server) Start() error {
 		s.Environment["SERVER_RUN_CONTEXT"] = "HOST"
 	}
 
-	if s.OnAuthentication == nil {
-		s.OnAuthentication = CreateDefaultOnAuthentication(s.User, s.Pass, s.IsHoneypot)
-	}
-
-	if s.QRCode && s.AuthServer == "" {
-		s.AuthServer = "https://login.zcorky.com"
-	}
-
-	options := []ssh.Option{
-		ssh.Option(func(server *ssh.Server) error {
-			if server.Version == "" {
-				if s.IsHoneypot {
-					s.IsMasqueradeAsOpenSSH = true
-				}
-
-				if s.ServerEchoVersion == "" && s.IsMasqueradeAsOpenSSH {
-					s.ServerEchoVersion = "OpenSSH_8.2p1 Ubuntu-4ubuntu0.4"
-				}
-
-				if s.ServerEchoVersion == "" {
-					s.ServerEchoVersion = fmt.Sprintf("GzSSH_%s", s.Version)
-				}
-
-				server.Version = s.ServerEchoVersion
-			}
-
-			server.ServerConfigCallback = func(ctx ssh.Context) *gossh.ServerConfig {
-				cfg := &gossh.ServerConfig{}
-
-				// cfg.ServerVersion = "SSH-2.0-OpenSSH_8.6"
-
-				return cfg
-			}
-
-			// idle timeout
-			server.IdleTimeout = time.Duration(s.IdleTimeout) * time.Second
-
-			if s.MaxTimeout != 0 {
-				server.MaxTimeout = time.Duration(s.MaxTimeout) * time.Second
-			} else if server.MaxTimeout == 0 && s.IsHoneypot {
-				server.MaxTimeout = 5 * time.Minute
-			}
-
-			// connection
-			// connection start
-			server.ConnCallback = func(ctx ssh.Context, conn net.Conn) net.Conn {
-				logger.Infof("[connection][remote: %s] start to connect ...", conn.RemoteAddr())
-				return conn
-			}
-			// connected failed
-			server.ConnectionFailedCallback = func(conn net.Conn, err error) {
-				logger.Infof("[connection][remote: %s] failed to connect (err: %s).", conn.RemoteAddr(), err)
-			}
-
-			// default not allow login
-			server.PasswordHandler = func(ctx ssh.Context, password string) bool {
-				return false
-			}
-			server.PublicKeyHandler = func(ctx ssh.Context, key ssh.PublicKey) bool {
-				return false
-			}
-
-			return nil
-		}),
-	}
-
 	// if honeypot, force run in container, avoid being attack.
 	if s.IsHoneypot {
 		s.IsRunInContainer = true
-		s.IsContainerAutoRemoveWhenExitDisabled = true
+		s.IsContainerAutoDestroyImmediatelyWhenExit = true
 		s.IsContainerPrivilegeAllowed = false
 		// s.IsContainerAllowRecovery = true
 		s.IsAllowAudit = true
 		// limit resource avoid server broken
+		s.MaxTimeout = 5 * 60
 		if s.Memory == "" {
 			s.Memory = "48M"
 		}
@@ -341,30 +261,20 @@ func (s *Server) Start() error {
 		if s.CPUPercent == 0 {
 			s.CPUPercent = 60
 		}
-
-		if s.IsHoneypotAllowAllUser {
-			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-				logger.Infof("[auth: password] honeypot user %s ...", ctx.User())
-				logger.Infof("[auth: password][user: %s][remote %s][version: %s] (user: %s, pass: %s)...", ctx.User(), ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
-				return true
-			}))
-		}
-	}
-
-	if s.IsContainerRecoveryDisabled {
-		s.IsContainerRecoveryAllowed = false
 	}
 
 	if s.IsAllowAudit {
-		if s.AuditLogDir != "" {
-			if err := os.MkdirAll(s.AuditLogDir, 0766); err != nil {
-				return fmt.Errorf("failed to create audit log dir(%s): %s", s.AuditLogDir, err)
-			}
+		if s.AuditLogDir == "" {
+			return fmt.Errorf("audit mode --audit-log-dir is required")
+		}
+
+		if err := os.MkdirAll(s.AuditLogDir, 0766); err != nil {
+			return fmt.Errorf("failed to create audit log dir(%s): %s", s.AuditLogDir, err)
 		}
 
 		if s.OnAudit == nil {
 			s.OnAudit = func(user string, remote string, isPty bool, log []byte) {
-				logger.Infof("[audit][user: %s][remote: %s][pty: %v] writing", user, remote, isPty)
+				// logger.Infof("[audit][user: %s][remote: %s][pty: %v] writing", user, remote, isPty)
 
 				if s.AuditLogDir != "" {
 					var logFilepath string
@@ -527,167 +437,20 @@ func (s *Server) Start() error {
 		session.Exit(exitCode)
 	})
 
-	if s.User != "" && s.Pass != "" {
-		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-			return s.OnAuthentication(ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
-		}))
-	} else if s.AuthServer != "" {
-		// qrcode login
-		if s.QRCode {
-			if s.QRCodeClientID == "" || s.QRCodeRedirectURI == "" {
-				return fmt.Errorf("[qrcode] client id (--qrcode-client-id) and redirect uri (--qrcode-redirect-uri) are required")
-			}
-
-			options = append(options, func(s *ssh.Server) error {
-				originServerConfigCallback := s.ServerConfigCallback
-
-				s.ServerConfigCallback = func(ctx ssh.Context) *gossh.ServerConfig {
-					var cfg *gossh.ServerConfig
-					if originServerConfigCallback == nil {
-						cfg = &gossh.ServerConfig{}
-					} else {
-						cfg = originServerConfigCallback(ctx)
-					}
-
-					cfg.NoClientAuth = true
-
-					// fmt.Println("cfg.NoClientAuth:", cfg.NoClientAuth)
-
-					return cfg
-				}
-
-				return nil
-			})
-		} else {
-			// password login
-			options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-				url := fmt.Sprintf("%s/login", s.AuthServer)
-				remote := ctx.RemoteAddr().String()
-				user := ctx.User()
-
-				response, err := fetch.Post(url, &fetch.Config{
-					Headers: map[string]string{
-						"content-type": "application/json",
-						"accept":       "application/json",
-						"user-agent":   fmt.Sprintf("gzssh/%s go-zoox_fetch/%s", s.Version, fetch.Version),
-					},
-					Body: map[string]string{
-						"from":     "gzssh",
-						"remote":   remote,
-						"username": user,
-						"password": pass,
-					},
-				})
-				if err != nil {
-					logger.Errorf("failed to login with user(%s) to %s (err: %v)", user, url, err)
-					return false
-				}
-
-				if !response.Ok() {
-					logger.Errorf("failed to login with user(%s) to %s (status: %d, response: %s)", user, url, response.Status, response.String())
-					return false
-				}
-
-				logger.Infof("[auth: auth_server][user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
-				return true
-			}))
-		}
-	} else {
-		if s.QRCode {
-			return fmt.Errorf("[qrcode] require --auth-server as qrcode oauth server")
-		}
-	}
-
-	if s.ClientAuthorizedKey != "" {
-		// https://stackoverflow.com/questions/62236441/getting-ssh-short-read-error-when-trying-to-parse-a-public-key-in-golang
-		authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(s.ClientAuthorizedKey))
-		if err != nil {
-			return err
-		}
-
-		publicKeyPEM, err := ssh.ParsePublicKey(authorizedKey.Marshal())
-		if err != nil {
-			return err
-		}
-
-		options = append(options, ssh.PublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
-			// allow all keys
-			// return true
-
-			// or use ssh.KeysEqual() to compare against known keys
-			remote := ctx.RemoteAddr()
-			user := ctx.User()
-			isOK := ssh.KeysEqual(key, publicKeyPEM)
-			if !isOK {
-				logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] failed to authenticate.", user, remote, ctx.ClientVersion())
-			} else {
-				logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] succeed to authenticate.", user, remote, ctx.ClientVersion())
-			}
-
-			return isOK
-		}))
-	}
-
-	if s.ServerPrivateKey != "" {
-		options = append(options, ssh.HostKeyPEM([]byte(s.ServerPrivateKey)))
-	}
-
-	if s.IsPtyDisabled {
-		options = append(options, ssh.NoPty())
-	}
-
-	if s.IsAllowSFTP {
-		options = append(options, ssh.Option(func(s *ssh.Server) error {
-			if s.SubsystemHandlers == nil {
-				s.SubsystemHandlers = map[string]ssh.SubsystemHandler{}
-			}
-
-			// sftp
-			s.SubsystemHandlers["sftp"] = sftp.CreateSftp()
-
-			return nil
-		}))
-	}
-
-	if s.IsAllowRemoteForward {
-		options = append(options, ssh.Option(func(s *ssh.Server) error {
-			forwardHandler := &ssh.ForwardedTCPHandler{}
-
-			s.LocalPortForwardingCallback = ssh.LocalPortForwardingCallback(func(ctx ssh.Context, dhost string, dport uint32) bool {
-				logger.Infof("accepted forward => %s:%d", dhost, dport)
-				return true
-			})
-
-			s.ReversePortForwardingCallback = ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
-				logger.Infof("attempt to bind => %s:%d", host, port)
-				return true
-			})
-
-			if s.ChannelHandlers == nil {
-				s.ChannelHandlers = map[string]ssh.ChannelHandler{}
-			}
-			s.ChannelHandlers["direct-tcpip"] = ssh.DirectTCPIPHandler
-			s.ChannelHandlers["session"] = ssh.DefaultSessionHandler
-
-			if s.RequestHandlers == nil {
-				s.RequestHandlers = map[string]ssh.RequestHandler{}
-			}
-			s.RequestHandlers["tcpip-forward"] = forwardHandler.HandleSSHRequest
-			s.RequestHandlers["cancel-tcpip-forward"] = forwardHandler.HandleSSHRequest
-
-			return nil
-		}))
-	}
-
-	if s.ContainerMaxAge == 0 {
-		s.ContainerMaxAge = 3600
-	}
+	// if s.ContainerMaxAge == 0 {
+	// 	s.ContainerMaxAge = 3600
+	// }
 
 	if s.Port == 0 {
 		s.Port = 22
 	}
 
 	address := fmt.Sprintf("%s:%d", s.Host, s.Port)
+
+	options, err := s.Options()
+	if err != nil {
+		return fmt.Errorf("failed to get options: %s", err)
+	}
 
 	// @TODO echo server info
 	options = append(options, func(session *ssh.Server) error {
@@ -698,13 +461,14 @@ func (s *Server) Start() error {
 
 		if !s.IsRunInContainer {
 			logger.Infof("[runtime] mode: %s", "host")
+			logger.Infof("")
 		} else {
 			logger.Infof("[runtime] mode: %s", "container")
 			logger.Infof("[runtime] auto cleanup container: %v", !s.IsContainerAutoCleanupWhenExitDisabled)
-			logger.Infof("[runtime] auto remove container: %v", !s.IsContainerAutoRemoveWhenExitDisabled)
+			logger.Infof("[runtime] auto destroy container: %v", s.IsContainerAutoDestroyImmediatelyWhenExit)
 
-			logger.Infof("[runtime] container recovery: %v", s.IsContainerRecoveryAllowed)
-			if s.IsContainerRecoveryAllowed {
+			logger.Infof("[runtime] container recovery: %v", !s.IsContainerRecoveryDisabled)
+			if !s.IsContainerAutoDestroyImmediatelyWhenExit {
 				logger.Infof("[runtime] container max age: %ds", s.ContainerMaxAge)
 			}
 			logger.Infof("[runtime] container privileged: %v", s.IsContainerPrivilegeAllowed)
@@ -713,6 +477,8 @@ func (s *Server) Start() error {
 			if s.ContainerReadonlyPaths != "" {
 				logger.Infof("[runtime] container readonly: %s", s.ContainerReadonlyPaths)
 			}
+
+			logger.Infof("")
 		}
 		if s.WorkDir != "" {
 			logger.Infof("[runtime] workdir: %s", s.WorkDir)

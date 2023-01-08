@@ -216,9 +216,11 @@ func (s *Server) getContainerName(session ssh.Session) string {
 		ip = parts[0]
 	}
 
-	containerName := fmt.Sprintf("%s_%s_dynamic_%s_%s_%d_%s", "gzssh", s.Version, user, ip, time.Now().UnixMilli(), session.Context().SessionID())
-	if s.IsContainerRecoveryAllowed {
+	var containerName string
+	if !s.IsContainerRecoveryDisabled {
 		containerName = fmt.Sprintf("%s_%s_recovery_%s_%s", "gzssh", s.Version, user, ip)
+	} else {
+		containerName = fmt.Sprintf("%s_%s_destory_%s_%s_%d_%s", "gzssh", s.Version, user, ip, time.Now().UnixMilli(), session.Context().SessionID())
 	}
 
 	return containerName
@@ -270,7 +272,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	logger.Infof("[conatiner] run with image: %s ...", cfg.Image)
-	if s.IsContainerRecoveryAllowed {
+	if !s.IsContainerRecoveryDisabled {
 		// var response types.ContainerJSON
 		response, errx := docker.ContainerInspect(ctx, containerName)
 		if errx != nil {
@@ -371,7 +373,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 
 					containerID = res.ID
 				} else {
-					logger.Infof("[conatiner] recovery old container: %s ...", containerName)
+					logger.Infof("[conatiner] recovery old container (status: %s): %s ...", response.State.Status, containerName)
 				}
 			}
 
@@ -395,7 +397,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	cleanup = func() {
-		if s.IsContainerAutoRemoveWhenExitDisabled {
+		if !s.IsContainerAutoDestroyImmediatelyWhenExit {
 			logger.Infof("[container] cleanup => stop ...")
 			docker.ContainerStop(ctx, containerID, nil)
 		} else {
@@ -418,7 +420,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	}
 
 	cleanup = func() {
-		if s.IsContainerAutoRemoveWhenExitDisabled {
+		if !s.IsContainerAutoDestroyImmediatelyWhenExit {
 			logger.Infof("[container] cleanup => stop ...")
 			docker.ContainerStop(ctx, containerID, nil)
 		} else {

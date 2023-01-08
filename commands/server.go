@@ -61,16 +61,10 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"DISABLE_CONTAINER_AUTO_CLEANUP_WHEN_EXIT"},
 			},
 			&cli.BoolFlag{
-				Name:    "disable-container-auto-remove-when-exit",
-				Usage:   "disable container auto remove(destory) when exit",
+				Name:    "container-auto-destory-immediately-when-exit",
+				Usage:   "enable container auto destory immediately when exit",
 				Aliases: []string{},
-				EnvVars: []string{"DISABLE_CONTAINER_AUTO_REMOVE_WHEN_EXIT"},
-			},
-			&cli.BoolFlag{
-				Name:    "allow-container-recovery",
-				Usage:   "Container allow recovery from stopped",
-				Aliases: []string{},
-				EnvVars: []string{"ALLOW_CONTAINER_RECOVERY"},
+				EnvVars: []string{"CONTAINER_AUTO_DESTROY_IMMEDIATELY_WHEN_EXIT"},
 			},
 			&cli.BoolFlag{
 				Name:    "disable-container-recovery",
@@ -308,7 +302,11 @@ func RegistryServer(app *cli.MultipleProgram) {
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
 			privateKeyFilepath := ctx.String("private-key-path")
-			if fs.IsExist(privateKeyFilepath) {
+			if privateKeyFilepath != "" {
+				if !fs.IsExist(privateKeyFilepath) {
+					return fmt.Errorf("private key file(%s) not found", privateKeyFilepath)
+				}
+
 				if privateKey == "" {
 					pemBytes, err := ioutil.ReadFile(privateKeyFilepath)
 					if err != nil {
@@ -349,22 +347,21 @@ func RegistryServer(app *cli.MultipleProgram) {
 				// 	return ctx.String("user") == user && ctx.String("pass") == pass
 				// },
 				//
-				IsRunInContainer:                       ctx.Bool("run-in-container"),
-				IsContainerAutoRemoveWhenExitDisabled:  ctx.Bool("disable-container-auto-remove-when-exit"),
-				IsContainerAutoCleanupWhenExitDisabled: ctx.Bool("disable-container-auto-cleanup-when-exit"),
-				IsContainerRecoveryAllowed:             ctx.Bool("allow-container-recovery"),
-				IsContainerRecoveryDisabled:            ctx.Bool("disable-container-recovery"),
-				IsContainerPrivilegeAllowed:            ctx.Bool("allow-container-privilege"),
-				IsContainerReadonly:                    ctx.Bool("container-readonly"),
-				ContainerReadonlyPaths:                 ctx.String("container-readonly-paths"),
-				ContainerNetworkMode:                   ctx.String("container-network-mode"),
-				ContainerNetwork:                       ctx.String("container-network"),
-				ContainerMaxAge:                        ctx.Int("container-max-age"),
-				WorkDir:                                ctx.String("workdir"),
-				PermissionDir:                          ctx.String("permission-dir"),
-				Image:                                  ctx.String("image"),
-				ImageRegistryUser:                      ctx.String("image-registry-user"),
-				ImageRegistryPass:                      ctx.String("image-registry-pass"),
+				IsRunInContainer:                          ctx.Bool("run-in-container"),
+				IsContainerAutoCleanupWhenExitDisabled:    ctx.Bool("disable-container-auto-cleanup-when-exit"),
+				IsContainerAutoDestroyImmediatelyWhenExit: ctx.Bool("container-auto-destory-immediately-when-exit"),
+				IsContainerRecoveryDisabled:               ctx.Bool("disable-container-recovery"),
+				IsContainerPrivilegeAllowed:               ctx.Bool("allow-container-privilege"),
+				IsContainerReadonly:                       ctx.Bool("container-readonly"),
+				ContainerReadonlyPaths:                    ctx.String("container-readonly-paths"),
+				ContainerNetworkMode:                      ctx.String("container-network-mode"),
+				ContainerNetwork:                          ctx.String("container-network"),
+				ContainerMaxAge:                           ctx.Int("container-max-age"),
+				WorkDir:                                   ctx.String("workdir"),
+				PermissionDir:                             ctx.String("permission-dir"),
+				Image:                                     ctx.String("image"),
+				ImageRegistryUser:                         ctx.String("image-registry-user"),
+				ImageRegistryPass:                         ctx.String("image-registry-pass"),
 				//
 				ServerPrivateKey: privateKey,
 				//
