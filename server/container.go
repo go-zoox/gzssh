@@ -23,7 +23,7 @@ import (
 	"github.com/go-zoox/logger"
 )
 
-func (s *Server) runInContainer(session ssh.Session) (int, error) {
+func (s *Server) runInContainer(session ssh.Session) (int, int, error) {
 	if s.Shell == "" {
 		s.Shell = "sh"
 	}
@@ -61,36 +61,26 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		// User: "1000:1000",
 	}
 
-	var mergedCommand string
-	if isPty {
-		if s.StartupCommand != "" {
-			if !s.IsNotAllowClientWrite {
-				mergedCommand = fmt.Sprintf("%s && %s", s.StartupCommand, s.Shell)
-			} else {
-				mergedCommand = s.StartupCommand
-			}
-		}
-	} else {
-		commands := session.Command()
-		mergedCommand = strings.Join(commands, " ")
-
-		if len(mergedCommand) != 0 {
-			auditor.Write([]byte(mergedCommand + "\r"))
+	commands := []string{}
+	if s.StartupCommand != "" {
+		commands = append(commands, s.StartupCommand)
+		if !s.IsNotAllowClientWrite {
+			commands = append(commands, s.Shell)
 		}
 	}
 
-	// fmt.Println("commandsText:", commandsText)
+	sessionCommands := session.Command()
+	if len(sessionCommands) != 0 {
+		commands = append(commands, strings.Join(sessionCommands, " "))
+	}
 
-	if len(mergedCommand) != 0 {
+	if len(commands) != 0 {
+		mergedCommand := strings.Join(commands, " && ")
 		cfg.Cmd = []string{"sh", "-c", mergedCommand}
 
-		// if s.auditor != nil {
-		// 	for _, c := range commands {
-		// 		auditor.Write(append([]byte(c), ' '))
-		// 	}
+		// auditor.Write([]byte(mergedCommand + "\r"))
 
-		// 	auditor.Write([]byte{'\r'})
-		// }
+		logger.Infof("[container] entrypoint command:", cfg.Cmd)
 	}
 
 	hostCfg := &container.HostConfig{}
@@ -98,7 +88,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		var memory uint64
 		memory, err := humanize.ParseBytes(s.Memory)
 		if err != nil {
-			return 1, err
+			return 1, 400015, err
 		}
 
 		hostCfg.Resources.Memory = int64(memory)
@@ -137,8 +127,6 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 			hostCfg.Resources.NanoCPUs = int64(s.CPUs * 1e9)
 		}
 	}
-
-	// fmt.Println("hostCfg.Resources.CPUQuota:", hostCfg.Resources.CPUQuota)
 
 	// –cpuset-cpus：指定允许容器使用的CPU序号,从0开始，默认使用主机的所有CPU
 	if s.CpusetCpus != "" {
@@ -201,7 +189,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		}
 	}
 
-	status, cleanup, err := runInDocker(s, cfg, hostCfg, networkCfg, session, auditor, containerName)
+	status, code, cleanup, err := runInDocker(s, cfg, hostCfg, networkCfg, session, auditor, containerName)
 	if !s.IsContainerAutoCleanupWhenExitDisabled {
 		defer cleanup()
 	}
@@ -216,7 +204,7 @@ func (s *Server) runInContainer(session ssh.Session) (int, error) {
 		}
 	}
 
-	return int(status), err
+	return int(status), int(code), err
 }
 
 func (s *Server) getContainerName(session ssh.Session) string {
@@ -236,16 +224,15 @@ func (s *Server) getContainerName(session ssh.Session) string {
 	return containerName
 }
 
-func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, networkCfg *network.NetworkingConfig, session ssh.Session, auditor *Auditor, containerName string) (status int64, cleanup func(), err error) {
+func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig, networkCfg *network.NetworkingConfig, session ssh.Session, auditor *Auditor, containerName string) (status int64, code int64, cleanup func(), err error) {
 	var docker *client.Client
 	docker, err = client.NewClientWithOpts()
 	if err != nil {
 		return
 	}
 
-	// fmt.Println("cmd:", cfg.Cmd)
-
 	status = 0
+	code = 0
 	cleanup = func() {}
 
 	containerID := ""
@@ -264,12 +251,16 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 			var encodedJSON []byte
 			encodedJSON, err = json.Marshal(authConfig)
 			if err != nil {
+				status = 1
+				code = 400001
 				return
 			}
 			imagePullCfg.RegistryAuth = base64.URLEncoding.EncodeToString(encodedJSON)
 		}
 		pullResponse, err = docker.ImagePull(ctx, cfg.Image, imagePullCfg)
 		if err != nil {
+			status = 1
+			code = 400002
 			return
 		}
 		io.Copy(os.Stdout, pullResponse)
@@ -288,6 +279,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 			res, err = docker.ContainerCreate(ctx, cfg, hostCfg, networkCfg, nil, containerName)
 			if err != nil {
 				status = 1
+				code = 400003
 				return
 			}
 
@@ -304,6 +296,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 					err = docker.ContainerStop(ctx, containerID, nil)
 					if err != nil {
 						status = 1
+						code = 400004
 						return
 					}
 				}
@@ -317,6 +310,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 				res, err = docker.ContainerCreate(ctx, cfg, hostCfg, networkCfg, nil, containerName)
 				if err != nil {
 					status = 1
+					code = 400005
 					return
 				}
 
@@ -336,22 +330,24 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 
 				if err != nil {
 					status = 1
+					code = 400006
 					return
 				}
 				containerCreatedAt = datetime.FromTime(responseCreatedAt.In(now.Location()))
 
 				isContainerExpired := !containerCreatedAt.Add(time.Duration(s.ContainerMaxAge) * time.Second).After(now)
 				if isContainerExpired {
-					fmt.Println("maxAge:", s.ContainerMaxAge)
-					fmt.Println("create:", containerCreatedAt.Format("YYYY-MM-DD HH:mm:ss"))
-					fmt.Println("create + maxAge:", containerCreatedAt.Add(time.Duration(s.ContainerMaxAge)*time.Second).Format("YYYY-MM-DD HH:mm:ss"))
-					fmt.Println("now:", now, now.Location())
+					logger.Infof("maxAge:", s.ContainerMaxAge)
+					logger.Infof("create:", containerCreatedAt.Format("YYYY-MM-DD HH:mm:ss"))
+					logger.Infof("create + maxAge:", containerCreatedAt.Add(time.Duration(s.ContainerMaxAge)*time.Second).Format("YYYY-MM-DD HH:mm:ss"))
+					logger.Infof("now:", now, now.Location())
 
 					if response.State.Running {
 						logger.Infof("[conatiner][alive: expired] stop running: %s ...", containerName)
 						err = docker.ContainerStop(ctx, containerID, nil)
 						if err != nil {
 							status = 1
+							code = 400007
 							return
 						}
 					}
@@ -360,6 +356,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 					err = docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
 					if err != nil {
 						status = 1
+						code = 400008
 						return
 					}
 
@@ -368,6 +365,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 					res, err = docker.ContainerCreate(ctx, cfg, hostCfg, networkCfg, nil, containerName)
 					if err != nil {
 						status = 1
+						code = 400009
 						return
 					}
 
@@ -389,6 +387,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 		res, err = docker.ContainerCreate(ctx, cfg, hostCfg, networkCfg, nil, containerName)
 		if err != nil {
 			status = 1
+			code = 400010
 			return
 		}
 
@@ -413,6 +412,8 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	var stream types.HijackedResponse
 	stream, err = docker.ContainerAttach(ctx, containerID, opts)
 	if err != nil {
+		status = 1
+		code = 400011
 		return
 	}
 
@@ -432,20 +433,21 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 
 	go func() {
 		var err error
+		// _, err = io.Copy(session, stream.Reader)
+		var sessionOutput io.Writer
+		if auditor != nil {
+			sessionOutput = io.MultiWriter(session, auditor)
+		} else {
+			sessionOutput = session
+		}
+
 		if cfg.Tty {
-			// _, err = io.Copy(session, stream.Reader)
-			var sessionWriters io.Writer
-			if auditor != nil {
-				sessionWriters = io.MultiWriter(session, auditor)
-			} else {
-				sessionWriters = session
-			}
-			go io.Copy(sessionWriters, stream.Reader) // stdout
+			io.Copy(sessionOutput, stream.Reader) // stdout
 		} else {
 			if len(session.Command()) != 0 {
-				_, err = stdcopy.StdCopy(session, session.Stderr(), stream.Reader)
+				_, err = stdcopy.StdCopy(sessionOutput, session.Stderr(), stream.Reader)
 			} else {
-				_, err = io.WriteString(session, fmt.Sprintf("Hi %s! You've successfully authenticated with %s (Containered).\n", session.User(), s.BrandName))
+				_, err = io.WriteString(sessionOutput, fmt.Sprintf("Hi %s! You've successfully authenticated with %s (Containered).\n", session.User(), s.BrandName))
 			}
 		}
 
@@ -480,6 +482,7 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	err = docker.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 	if err != nil {
 		status = 1
+		code = 400012
 		return
 	}
 
@@ -492,6 +495,8 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 					Width:  uint(win.Width),
 				})
 				if err != nil {
+					status = 1
+					code = 400013
 					log.Println(err)
 					break
 				}
@@ -502,6 +507,8 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 	resultC, errC := docker.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 	select {
 	case err = <-errC:
+		status = 1
+		code = 400014
 		return
 	case result := <-resultC:
 		status = result.StatusCode
@@ -514,8 +521,8 @@ func runInDocker(s *Server, cfg *container.Config, hostCfg *container.HostConfig
 			return
 		case result := <-resultC:
 			status = result.StatusCode
+			return
 		}
-		return
 	}
 
 	return

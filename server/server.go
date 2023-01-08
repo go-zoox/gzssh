@@ -364,6 +364,8 @@ func (s *Server) Start() error {
 
 		if s.OnAudit == nil {
 			s.OnAudit = func(user string, remote string, isPty bool, log []byte) {
+				logger.Infof("[audit][user: %s][remote: %s][pty: %v] writing", user, remote, isPty)
+
 				if s.AuditLogDir != "" {
 					var logFilepath string
 					if isPty {
@@ -398,6 +400,7 @@ func (s *Server) Start() error {
 		user := session.User()
 		remote := session.RemoteAddr().String()
 		exitCode := 0
+		code := 0
 
 		if s.QRCode {
 			io.WriteString(session, `
@@ -510,15 +513,15 @@ func (s *Server) Start() error {
 		logger.Infof("[handle][user: %s][remote: %s] connected ...", user, remote)
 
 		if s.IsRunInContainer {
-			exitCode, err = s.runInContainer(session)
+			exitCode, code, err = s.runInContainer(session)
 		} else {
-			exitCode, err = s.runInHost(session)
+			exitCode, code, err = s.runInHost(session)
 		}
 
 		if err != nil {
-			logger.Infof("[handle][user: %s][remote: %s] exit(code: %d, error: %s).", user, remote, exitCode, err)
+			logger.Infof("[handle][user: %s][remote: %s] exit(code: %d, code: %d, error: %s).", user, remote, exitCode, code, err)
 		} else {
-			logger.Infof("[handle][user: %s][remote: %s] exit(code: %d).", user, remote, exitCode)
+			logger.Infof("[handle][user: %s][remote: %s] exit(code: %d, code: %d).", user, remote, exitCode, code)
 		}
 
 		session.Exit(exitCode)
@@ -737,7 +740,12 @@ func (s *Server) Start() error {
 
 		logger.Infof("[runtime] audit: %v", s.IsAllowAudit)
 		if s.IsAllowAudit {
-			logger.Infof("[runtime] audit log dir: %v", s.AuditLogDir)
+			if s.AuditLogDir != "" {
+				logger.Infof("[runtime] audit mode: %s", "file")
+				logger.Infof("[runtime] audit log dir: %s", s.AuditLogDir)
+			} else {
+				logger.Infof("[runtime] audit mode: %s", "console")
+			}
 		}
 
 		showResource := false

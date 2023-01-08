@@ -222,7 +222,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 			&cli.BoolFlag{
 				Name:    "audit",
 				Usage:   "open audit",
-				Aliases: []string{"allow-audit"},
+				Aliases: []string{},
 				EnvVars: []string{"AUDIT"},
 			},
 			&cli.StringFlag{
@@ -385,8 +385,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				//
 				IsAllowRemoteForward: ctx.Bool("allow-remote-forward"),
 				//
-				IsAllowAudit: ctx.Bool("allow-audit"),
-				AuditLogDir:  ctx.String("audit-logdir"),
+				IsAllowAudit: ctx.Bool("audit"),
+				AuditLogDir:  ctx.String("audit-log-dir"),
 				//
 				IsHoneypot:             ctx.Bool("honeypot"),
 				IsHoneypotAllowAllUser: ctx.Bool("honeypot-allow-all-user"),
