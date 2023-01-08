@@ -1,6 +1,10 @@
 package server
 
-import "fmt"
+import (
+	"fmt"
+
+	"golang.org/x/crypto/ssh"
+)
 
 func (s *Server) defaults() error {
 	if s.BrandName == "" {
@@ -25,6 +29,12 @@ func (s *Server) defaults() error {
 
 	if s.QRCode && s.AuthServer == "" {
 		s.AuthServer = "https://login.zcorky.com"
+	}
+
+	if s.Banner != "" {
+		s.BannerCallback = func(conn ssh.ConnMetadata) string {
+			return s.Banner
+		}
 	}
 
 	return nil

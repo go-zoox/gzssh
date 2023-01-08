@@ -229,5 +229,26 @@ func (s *Server) Options() ([]ssh.Option, error) {
 		}))
 	}
 
+	if s.BannerCallback != nil {
+		options = append(options, func(server *ssh.Server) error {
+			originServerConfigCallback := server.ServerConfigCallback
+
+			server.ServerConfigCallback = func(ctx ssh.Context) *gossh.ServerConfig {
+				var cfg *gossh.ServerConfig
+				if originServerConfigCallback == nil {
+					cfg = &gossh.ServerConfig{}
+				} else {
+					cfg = originServerConfigCallback(ctx)
+				}
+
+				cfg.BannerCallback = s.BannerCallback
+
+				return cfg
+			}
+
+			return nil
+		})
+	}
+
 	return options, nil
 }

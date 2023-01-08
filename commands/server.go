@@ -173,9 +173,15 @@ func RegistryServer(app *cli.MultipleProgram) {
 			},
 			&cli.StringFlag{
 				Name:    "brand-name",
-				Usage:   "set brand name, such as welcome message",
+				Usage:   "set brand name for welcome message",
 				Aliases: []string{},
 				EnvVars: []string{"BRAND_NAME"},
+			},
+			&cli.StringFlag{
+				Name:    "banner",
+				Usage:   "set banner, which is the welcome message",
+				Aliases: []string{},
+				EnvVars: []string{"BANNER"},
 			},
 			&cli.StringFlag{
 				Name:    "auth-server",
@@ -370,6 +376,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				IsPtyDisabled: ctx.Bool("disable-pty"),
 				//
 				BrandName: ctx.String("brand-name"),
+				Banner:    ctx.String("banner"),
 				//
 				AuthServer:        ctx.String("auth-server"),
 				QRCode:            ctx.Bool("qrcode"),

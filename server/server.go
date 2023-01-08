@@ -12,6 +12,7 @@ import (
 	oauthqrcode "github.com/go-zoox/gzssh/utils/oauth-qrcode"
 	"github.com/go-zoox/gzssh/utils/qrcode"
 	"github.com/go-zoox/logger"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 func CreateDefaultOnAuthentication(defaultUser, defaultPass string, isShowUserPass bool) func(remote, version, user, pass string) bool {
@@ -184,6 +185,11 @@ type Server struct {
 
 	// Version is the GzSSH Version
 	Version string
+
+	// Banner is the GzSSH Banner string
+	Banner string
+	// BannerCallback is the GzSSH callback method for get banner string
+	BannerCallback func(conn gossh.ConnMetadata) string
 
 	// ServerEchoVersion is the ssh server echo version, prefix with SSH-2.0-
 	//	such as
@@ -457,6 +463,9 @@ func (s *Server) Start() error {
 		logger.Infof("[runtime] brand: %s", s.BrandName)
 		logger.Infof("[runtime] gzssh: %s", s.Version)
 		logger.Infof("[runtime] server version: SSH-2.0-%s", s.ServerEchoVersion)
+		if s.Banner != "" {
+			logger.Infof("[runtime] banner: %s", s.Banner)
+		}
 		logger.Infof("")
 
 		if !s.IsRunInContainer {
