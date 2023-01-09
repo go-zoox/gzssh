@@ -76,11 +76,10 @@ func (s *Server) runInContainer(session ssh.Session) (int, int, error) {
 
 	if len(commands) != 0 {
 		mergedCommand := strings.Join(commands, " && ")
+		logger.Infof("[container] entrypoint command: %s", mergedCommand)
+		auditor.Write([]byte(mergedCommand + "\r"))
+
 		cfg.Cmd = []string{"sh", "-c", mergedCommand}
-
-		// auditor.Write([]byte(mergedCommand + "\r"))
-
-		logger.Infof("[container] entrypoint command:", cfg.Cmd)
 	}
 
 	hostCfg := &container.HostConfig{}
