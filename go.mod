@@ -13,6 +13,7 @@ require (
 	github.com/go-zoox/fetch v1.7.2
 	github.com/go-zoox/fs v1.3.2
 	github.com/go-zoox/logger v1.3.2
+	github.com/go-zoox/lru v1.0.1
 	github.com/go-zoox/zoox v1.6.8
 	github.com/gorilla/websocket v1.5.0
 	github.com/mdp/qrterminal/v3 v3.0.0

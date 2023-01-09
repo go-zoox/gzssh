@@ -9,9 +9,11 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/go-zoox/datetime"
+	"github.com/go-zoox/fs"
 	oauthqrcode "github.com/go-zoox/gzssh/utils/oauth-qrcode"
 	"github.com/go-zoox/gzssh/utils/qrcode"
 	"github.com/go-zoox/logger"
+	lru "github.com/go-zoox/lru"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -279,20 +281,34 @@ func (s *Server) Start() error {
 			return fmt.Errorf("audit mode --audit-log-dir is required")
 		}
 
-		if err := os.MkdirAll(s.AuditLogDir, 0766); err != nil {
-			return fmt.Errorf("failed to create audit log dir(%s): %s", s.AuditLogDir, err)
-		}
+		// if err := os.MkdirAll(s.AuditLogDir, 0766); err != nil {
+		// 	return fmt.Errorf("failed to create audit log dir(%s): %s", s.AuditLogDir, err)
+		// }
 
 		if s.OnAudit == nil {
+			isDirCreatedCache := lru.New(10)
+
 			s.OnAudit = func(user string, remote string, isPty bool, log []byte) {
 				// logger.Infof("[audit][user: %s][remote: %s][pty: %v] writing", user, remote, isPty)
+				date := datetime.Now().Format("YYYY-MM-DD")
 
 				if s.AuditLogDir != "" {
 					var logFilepath string
+					auditLogDir := fmt.Sprintf("%s/%s", s.AuditLogDir, date)
+					if _, ok := isDirCreatedCache.Get(auditLogDir); !ok {
+						if !fs.IsExist(auditLogDir) {
+							if err := os.MkdirAll(auditLogDir, 0766); err != nil {
+								logger.Infof("failed to create direactory(%s): %s", auditLogDir, fmt.Errorf("failed to create audit log dir(%s): %s", auditLogDir, err))
+							}
+
+							isDirCreatedCache.Set(auditLogDir, true)
+						}
+					}
+
 					if isPty {
-						logFilepath = fmt.Sprintf("%s/audit_%s_%s_pty.log", s.AuditLogDir, user, remote)
+						logFilepath = fmt.Sprintf("%s/audit_%s_%s_pty.log", auditLogDir, user, remote)
 					} else {
-						logFilepath = fmt.Sprintf("%s/audit_%s_%s_nopty.log", s.AuditLogDir, user, remote)
+						logFilepath = fmt.Sprintf("%s/audit_%s_%s_nopty.log", auditLogDir, user, remote)
 					}
 
 					f, err := os.OpenFile(logFilepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0766)
