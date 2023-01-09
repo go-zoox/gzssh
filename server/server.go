@@ -269,6 +269,11 @@ func (s *Server) Start() error {
 		}
 	}
 
+	// if container recovery is enabled, so container will not been destroyed when exit
+	if !s.IsContainerRecoveryDisabled {
+		s.IsContainerAutoDestroyImmediatelyWhenExit = false
+	}
+
 	if s.IsAllowAudit {
 		if s.AuditLogDir == "" {
 			return fmt.Errorf("audit mode --audit-log-dir is required")
