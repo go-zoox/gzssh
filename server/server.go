@@ -300,7 +300,13 @@ func (s *Server) Start() error {
 
 				if s.AuditLogDir != "" {
 					var logFilepath string
-					auditLogDir := fmt.Sprintf("%s/%s", s.AuditLogDir, date)
+					var auditLogDir string
+					if !isHoneypot {
+						auditLogDir = fmt.Sprintf("%s/%s", s.AuditLogDir, date)
+					} else {
+						auditLogDir = fmt.Sprintf("%s/%s/honeypot", s.AuditLogDir, date)
+					}
+
 					if _, ok := isDirCreatedCache.Get(auditLogDir); !ok {
 						if !fs.IsExist(auditLogDir) {
 							if err := os.MkdirAll(auditLogDir, 0766); err != nil {
