@@ -73,13 +73,28 @@ func (s *Server) Options() ([]ssh.Option, error) {
 		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
 			logger.Infof("[auth: password] honeypot user %s ...", ctx.User())
 			logger.Infof("[auth: password][user: %s][remote %s][version: %s] (user: %s, pass: %s)...", ctx.User(), ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
+
+			if err := s.setSessionUser(ctx.SessionID(), "password", ctx.User(), pass, ""); err != nil {
+				logger.Errorf("failed to setSessionUser (session id: %s, user: %s): %s", ctx.SessionID(), ctx.User(), err)
+				return false
+			}
+
 			return true
 		}))
 	}
 
 	if s.User != "" && s.Pass != "" {
 		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-			return s.OnAuthentication(ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
+			ok := s.OnAuthentication(ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
+			if !ok {
+				return false
+			}
+
+			if err := s.setSessionUser(ctx.SessionID(), "password", ctx.User(), pass, ""); err != nil {
+				logger.Errorf("failed to setSessionUser (2) (session id: %s, user: %s): %s", ctx.SessionID(), ctx.User(), err)
+				return false
+			}
+			return true
 		}))
 	} else if s.AuthServer != "" {
 		// qrcode login
@@ -139,6 +154,12 @@ func (s *Server) Options() ([]ssh.Option, error) {
 				}
 
 				logger.Infof("[auth: auth_server][user: %s] succeed to authenticate with auth server(%s).", user, s.AuthServer)
+
+				if err := s.setSessionUser(ctx.SessionID(), "password", ctx.User(), pass, ""); err != nil {
+					logger.Errorf("failed to setSessionUser (2) (session id: %s, user: %s): %s", ctx.SessionID(), ctx.User(), err)
+					return false
+				}
+
 				return true
 			}))
 		}
@@ -170,11 +191,17 @@ func (s *Server) Options() ([]ssh.Option, error) {
 			isOK := ssh.KeysEqual(key, publicKeyPEM)
 			if !isOK {
 				logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] failed to authenticate.", user, remote, ctx.ClientVersion())
-			} else {
-				logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] succeed to authenticate.", user, remote, ctx.ClientVersion())
+				return false
 			}
 
-			return isOK
+			logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] succeed to authenticate.", user, remote, ctx.ClientVersion())
+
+			if err := s.setSessionUser(ctx.SessionID(), "password", ctx.User(), string(key.Marshal()), ""); err != nil {
+				logger.Errorf("failed to setSessionUser (2) (session id: %s, user: %s): %s", ctx.SessionID(), ctx.User(), err)
+				return false
+			}
+
+			return true
 		}))
 	}
 

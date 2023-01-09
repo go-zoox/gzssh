@@ -34,7 +34,13 @@ func (s *Server) runInHost(session ssh.Session) (int, int, error) {
 	remote := session.RemoteAddr().String()
 	var auditor *Auditor
 	if s.auditor != nil {
-		auditor = s.auditor(user, remote, isPty)
+		auditor = s.auditor(
+			user,
+			s.getSessionUserPass(session),
+			remote,
+			isPty,
+			s.IsHoneypot,
+		)
 	}
 
 	// 1. interfactive

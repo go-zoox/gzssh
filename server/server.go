@@ -43,13 +43,17 @@ func CreateDefaultOnAuthentication(defaultUser, defaultPass string, isShowUserPa
 type Auditor struct {
 	io.Writer
 
-	Log func(user string, remote string, isPty bool, log []byte)
+	Log func(user, pass string, remote string, isPty bool, isHoneypot bool, log []byte)
 
 	User string
+
+	Pass string
 
 	Remote string
 
 	IsPty bool
+
+	IsHoneypot bool
 
 	// buf []byte
 }
@@ -95,19 +99,21 @@ func (a *Auditor) Write(p []byte) (n int, err error) {
 	// }
 
 	if n != 0 {
-		a.Log(a.User, a.Remote, a.IsPty, p)
+		a.Log(a.User, a.Pass, a.Remote, a.IsPty, a.IsHoneypot, p)
 	}
 
 	return
 }
 
-func CreateDefaultAuditor(auditFn func(user string, remote string, isPty bool, log []byte)) func(user string, remote string, isPty bool) *Auditor {
-	return func(user string, remote string, isPty bool) *Auditor {
+func CreateDefaultAuditor(auditFn func(user, pass string, remote string, isPty bool, isHoneypot bool, log []byte)) func(user, pass string, remote string, isPty bool, isHoneypot bool) *Auditor {
+	return func(user, pass string, remote string, isPty bool, isHoneypot bool) *Auditor {
 		return &Auditor{
-			Log:    auditFn,
-			User:   user,
-			Remote: remote,
-			IsPty:  isPty,
+			Log:        auditFn,
+			User:       user,
+			Pass:       pass,
+			Remote:     remote,
+			IsPty:      isPty,
+			IsHoneypot: isHoneypot,
 		}
 	}
 }
@@ -123,7 +129,7 @@ type Server struct {
 	MaxTimeout int
 	//
 	OnAuthentication func(remote, version, user, pass string) bool
-	OnAudit          func(user string, remote string, isPty bool, log []byte)
+	OnAudit          func(user, pass string, remote string, isPty bool, isHoneypot bool, log []byte)
 	//
 	User string
 	Pass string
@@ -234,7 +240,7 @@ type Server struct {
 	CPUShares int
 
 	//
-	auditor func(user string, remote string, isPty bool) *Auditor
+	auditor func(user, pass string, remote string, isPty bool, isHoneypot bool) *Auditor
 }
 
 func (s *Server) Start() error {
@@ -288,7 +294,7 @@ func (s *Server) Start() error {
 		if s.OnAudit == nil {
 			isDirCreatedCache := lru.New(10)
 
-			s.OnAudit = func(user string, remote string, isPty bool, log []byte) {
+			s.OnAudit = func(user string, pass string, remote string, isPty bool, isHoneypot bool, log []byte) {
 				// logger.Infof("[audit][user: %s][remote: %s][pty: %v] writing", user, remote, isPty)
 				date := datetime.Now().Format("YYYY-MM-DD")
 
@@ -305,10 +311,18 @@ func (s *Server) Start() error {
 						}
 					}
 
-					if isPty {
-						logFilepath = fmt.Sprintf("%s/audit_%s_%s_pty.log", auditLogDir, user, remote)
+					if !isHoneypot {
+						if isPty {
+							logFilepath = fmt.Sprintf("%s/audit_%s_%s_pty.log", auditLogDir, user, remote)
+						} else {
+							logFilepath = fmt.Sprintf("%s/audit_%s_%s_nopty.log", auditLogDir, user, remote)
+						}
 					} else {
-						logFilepath = fmt.Sprintf("%s/audit_%s_%s_nopty.log", auditLogDir, user, remote)
+						if isPty {
+							logFilepath = fmt.Sprintf("%s/audit_%s_%s_pty_honeypot_%s.log", auditLogDir, user, remote, pass)
+						} else {
+							logFilepath = fmt.Sprintf("%s/audit_%s_%s_nopty_honeypot_%s.log", auditLogDir, user, remote, pass)
+						}
 					}
 
 					f, err := os.OpenFile(logFilepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0766)
@@ -579,12 +593,29 @@ func (s *Server) Start() error {
 	return ssh.ListenAndServe(address, nil, options...)
 }
 
-var LEGAL_CHARS_MAPPING = map[byte]bool{}
+func (s *Server) setSessionUser(sessionID string, authType string, user string, password string, publicKey string) error {
+	SessionUserCache.Set(sessionID, &SessionUser{sessionID, authType, user, password, publicKey})
+	return nil
+}
 
-var LEGAL_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+`~<>,.;':\"[]{}\\| \t\v"
-
-func init() {
-	for _, char := range LEGAL_CHARS {
-		LEGAL_CHARS_MAPPING[byte(char)] = true
+func (s *Server) getSessionUser(sessionID string) (*SessionUser, error) {
+	sessionUser, ok := SessionUserCache.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session user not found by session id(%s) (1)", sessionID)
 	}
+
+	if v, ok := sessionUser.(*SessionUser); ok {
+		return v, nil
+	}
+
+	return nil, fmt.Errorf("session user not type of *SessionUser by session id(%s) (2)", sessionID)
+}
+
+func (s *Server) getSessionUserPass(session ssh.Session) string {
+	sessionUser, err := s.getSessionUser(session.Context().SessionID())
+	if err != nil || sessionUser == nil {
+		return ""
+	}
+
+	return sessionUser.Pass
 }
