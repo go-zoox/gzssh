@@ -1,4 +1,4 @@
 package main
 
 // Version is the version of lighthouse
-var Version = "1.8.11"
+var Version = "1.8.12"
