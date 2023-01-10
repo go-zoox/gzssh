@@ -133,6 +133,8 @@ type Server struct {
 	//
 	User string
 	Pass string
+	//
+	LogDir string
 
 	StartupCommand        string
 	IsNotAllowClientWrite bool
@@ -504,6 +506,7 @@ func (s *Server) Start() error {
 		logger.Infof("[runtime] brand: %s", s.BrandName)
 		logger.Infof("[runtime] gzssh: %s", s.Version)
 		logger.Infof("[runtime] server version: SSH-2.0-%s", s.ServerEchoVersion)
+		logger.Infof("[runtime] log dir: %s", s.LogDir)
 		if s.Banner != "" {
 			logger.Infof("[runtime] banner: %s", s.Banner)
 		}

@@ -39,6 +39,13 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"PASS"},
 			},
 			&cli.StringFlag{
+				Name:    "log-dir",
+				Usage:   "the log dir for access, auth, and audit",
+				Aliases: []string{},
+				EnvVars: []string{"LOG_DIR"},
+				Value:   "/var/log/gzssh",
+			},
+			&cli.StringFlag{
 				Name:    "startup-command",
 				Usage:   "run command from startup, only works in pty",
 				EnvVars: []string{"STARTUP_COMMAND"},
@@ -346,6 +353,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Port: ctx.Int("port"),
 				User: ctx.String("user"),
 				Pass: ctx.String("pass"),
+				//
+				LogDir: ctx.String("log-dir"),
 				// startup
 				StartupCommand:        ctx.String("startup-command"),
 				IsNotAllowClientWrite: ctx.Bool("no-write"),
