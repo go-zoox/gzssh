@@ -12,6 +12,7 @@ require (
 	github.com/go-zoox/datetime v1.1.1
 	github.com/go-zoox/fetch v1.7.2
 	github.com/go-zoox/fs v1.3.2
+	github.com/go-zoox/ip v1.0.2
 	github.com/go-zoox/logger v1.3.3
 	github.com/go-zoox/lru v1.0.1
 	github.com/go-zoox/zoox v1.6.8

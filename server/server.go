@@ -12,6 +12,7 @@ import (
 	"github.com/go-zoox/fs"
 	oauthqrcode "github.com/go-zoox/gzssh/utils/oauth-qrcode"
 	"github.com/go-zoox/gzssh/utils/qrcode"
+	"github.com/go-zoox/ip"
 	"github.com/go-zoox/logger"
 	lru "github.com/go-zoox/lru"
 	gossh "golang.org/x/crypto/ssh"
@@ -503,6 +504,19 @@ func (s *Server) Start() error {
 
 	// @TODO echo server info
 	options = append(options, func(session *ssh.Server) error {
+		internalIP, err := ip.GetInternalIP()
+		if err != nil {
+			return fmt.Errorf("failed to get internal ip: %v", err)
+		}
+
+		publicIP, _ := ip.GetPublicIP()
+		// if err != nil {
+		// 	return fmt.Errorf("failed to get public ip: %v", err)
+		// }
+
+		logger.Infof("[runtime] ip internal: %s", internalIP)
+		logger.Infof("[runtime]    public  : %s", publicIP)
+
 		logger.Infof("[runtime] brand: %s", s.BrandName)
 		logger.Infof("[runtime] gzssh: %s", s.Version)
 		logger.Infof("[runtime] server version: SSH-2.0-%s", s.ServerEchoVersion)
