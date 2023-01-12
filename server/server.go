@@ -211,6 +211,9 @@ type Server struct {
 	// IsMasqueradeAsOpenSSH will set Server Echo Version as OpenSSH if ServerEchoVersion not set
 	IsMasqueradeAsOpenSSH bool
 
+	// IsNoHistory ignores command histories
+	IsNoHistory bool
+
 	//
 	IsAllowSFTP bool
 
@@ -258,6 +261,10 @@ func (s *Server) Start() error {
 		s.Environment["SERVER_RUN_CONTEXT"] = "CONTAINER"
 	} else {
 		s.Environment["SERVER_RUN_CONTEXT"] = "HOST"
+	}
+
+	if s.IsNoHistory {
+		s.Environment["HISTFILE"] = "/dev/null"
 	}
 
 	// if honeypot, force run in container, avoid being attack.

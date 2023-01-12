@@ -311,6 +311,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"MASQUERADE_AS_OPENSSH"},
 			},
+			&cli.BoolFlag{
+				Name:    "no-history",
+				Usage:   "Ignore Command History",
+				Aliases: []string{},
+				EnvVars: []string{"NO_HISTORY"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -419,6 +425,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				ServerEchoVersion: ctx.String("server-echo-version"),
 				//
 				IsMasqueradeAsOpenSSH: ctx.Bool("masquerade-as-openssh"),
+				//
+				IsNoHistory: ctx.Bool("no-history"),
 			}
 
 			return s.Start()
