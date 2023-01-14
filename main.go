@@ -7,8 +7,8 @@ import (
 
 func main() {
 	app := cli.NewMultipleProgram(&cli.MultipleProgramConfig{
-		Name:    "multiple",
-		Usage:   "multiple is a program that has multiple commands.",
+		Name:    "gzssh",
+		Usage:   "gzssh is a portable, containered ssh server and client, aliernative to openssh server and client",
 		Version: Version,
 	})
 
