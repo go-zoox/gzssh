@@ -323,6 +323,12 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Aliases: []string{},
 				EnvVars: []string{"CUSTOM_SHELL"},
 			},
+			&cli.BoolFlag{
+				Name:    "disable-root-login",
+				Usage:   "Disable root login",
+				Aliases: []string{},
+				EnvVars: []string{"DISABLE_ROOT_LOGIN"},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
 			privateKey := ctx.String("private-key")
@@ -435,6 +441,8 @@ func RegistryServer(app *cli.MultipleProgram) {
 				IsNoHistory: ctx.Bool("no-history"),
 				//
 				Shell: ctx.String("shell"),
+				//
+				IsRootLoginDisabled: ctx.Bool("disable-root-login"),
 			}
 
 			return s.Start()

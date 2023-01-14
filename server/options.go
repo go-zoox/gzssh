@@ -85,13 +85,18 @@ func (s *Server) Options() ([]ssh.Option, error) {
 
 	if s.User != "" && s.Pass != "" {
 		options = append(options, ssh.PasswordAuth(func(ctx ssh.Context, pass string) bool {
-			ok := s.OnAuthentication(ctx.RemoteAddr().String(), ctx.ClientVersion(), ctx.User(), pass)
+			user := ctx.User()
+			if s.IsRootLoginDisabled && user == "root" {
+				return false
+			}
+
+			ok := s.OnAuthentication(ctx.RemoteAddr().String(), ctx.ClientVersion(), user, pass)
 			if !ok {
 				return false
 			}
 
-			if err := s.setSessionUser(ctx.SessionID(), "password", ctx.User(), pass, ""); err != nil {
-				logger.Errorf("failed to setSessionUser (2) (session id: %s, user: %s): %s", ctx.SessionID(), ctx.User(), err)
+			if err := s.setSessionUser(ctx.SessionID(), "password", user, pass, ""); err != nil {
+				logger.Errorf("failed to setSessionUser (2) (session id: %s, user: %s): %s", ctx.SessionID(), user, err)
 				return false
 			}
 			return true
@@ -188,6 +193,10 @@ func (s *Server) Options() ([]ssh.Option, error) {
 			// or use ssh.KeysEqual() to compare against known keys
 			remote := ctx.RemoteAddr()
 			user := ctx.User()
+			if s.IsRootLoginDisabled && user == "root" {
+				return false
+			}
+
 			isOK := ssh.KeysEqual(key, publicKeyPEM)
 			if !isOK {
 				logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] failed to authenticate.", user, remote, ctx.ClientVersion())

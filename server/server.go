@@ -224,6 +224,9 @@ type Server struct {
 	IsAllowAudit bool
 	AuditLogDir  string
 
+	//
+	IsRootLoginDisabled bool
+
 	// IsHoneypot works as a honey pot
 	IsHoneypot             bool
 	IsHoneypotAllowAllUser bool
