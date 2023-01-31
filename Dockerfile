@@ -19,7 +19,7 @@ RUN GOOS=linux \
   -v -o gzssh
 
 # Server
-FROM whatwewant/go:1.19-1
+FROM whatwewant/go:v1.19-1
 
 LABEL MAINTAINER="Zero<tobewhatwewant@gmail.com>"
 
