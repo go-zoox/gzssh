@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -174,9 +175,9 @@ type Server struct {
 	//  also named HostKey PEM
 	ServerPrivateKey string
 
-	// ClientAuthorizedKey is the client public key for client authorized
+	// ClientAuthorizedKeys is the client public key for client authorized
 	//  also named Authorized Key
-	ClientAuthorizedKey string
+	ClientAuthorizedKeys []string
 
 	// IsPtyDisabled is pty disabled
 	IsPtyDisabled bool
@@ -250,6 +251,8 @@ type Server struct {
 
 	//
 	auditor func(user, pass string, remote string, isPty bool, isHoneypot bool) *Auditor
+	//
+	supportAuth []string
 }
 
 func (s *Server) Start() error {
@@ -530,6 +533,7 @@ func (s *Server) Start() error {
 		logger.Infof("[runtime] brand: %s", s.BrandName)
 		logger.Infof("[runtime] gzssh: %s", s.Version)
 		logger.Infof("[runtime] server version: SSH-2.0-%s", s.ServerEchoVersion)
+		logger.Infof("[runtime] auth methods: %s", strings.Join(s.supportAuth, ","))
 		logger.Infof("[runtime] log dir: %s", s.LogDir)
 		if s.Banner != "" {
 			logger.Infof("[runtime] banner: %s", s.Banner)

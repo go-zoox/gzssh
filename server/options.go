@@ -58,12 +58,12 @@ func (s *Server) Options() ([]ssh.Option, error) {
 			}
 
 			// default not allow login
-			server.PasswordHandler = func(ctx ssh.Context, password string) bool {
-				return false
-			}
-			server.PublicKeyHandler = func(ctx ssh.Context, key ssh.PublicKey) bool {
-				return false
-			}
+			// server.PasswordHandler = func(ctx ssh.Context, password string) bool {
+			// 	return false
+			// }
+			// server.PublicKeyHandler = func(ctx ssh.Context, key ssh.PublicKey) bool {
+			// 	return false
+			// }
 
 			return nil
 		}),
@@ -81,6 +81,8 @@ func (s *Server) Options() ([]ssh.Option, error) {
 
 			return true
 		}))
+
+		s.supportAuth = append(s.supportAuth, "password")
 	}
 
 	if s.User != "" && s.Pass != "" {
@@ -101,6 +103,8 @@ func (s *Server) Options() ([]ssh.Option, error) {
 			}
 			return true
 		}))
+
+		s.supportAuth = append(s.supportAuth, "password")
 	} else if s.AuthServer != "" {
 		// qrcode login
 		if s.QRCode {
@@ -168,22 +172,30 @@ func (s *Server) Options() ([]ssh.Option, error) {
 				return true
 			}))
 		}
+
+		s.supportAuth = append(s.supportAuth, "password")
 	} else {
 		if s.QRCode {
 			return nil, fmt.Errorf("[qrcode] require --auth-server as qrcode oauth server")
 		}
 	}
 
-	if s.ClientAuthorizedKey != "" {
-		// https://stackoverflow.com/questions/62236441/getting-ssh-short-read-error-when-trying-to-parse-a-public-key-in-golang
-		authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(s.ClientAuthorizedKey))
-		if err != nil {
-			return nil, err
-		}
+	if s.ClientAuthorizedKeys != nil {
+		publicKeyPEMs := []ssh.PublicKey{}
 
-		publicKeyPEM, err := ssh.ParsePublicKey(authorizedKey.Marshal())
-		if err != nil {
-			return nil, err
+		for _, authorizedKeyRaw := range s.ClientAuthorizedKeys {
+			// https://stackoverflow.com/questions/62236441/getting-ssh-short-read-error-when-trying-to-parse-a-public-key-in-golang
+			authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(authorizedKeyRaw))
+			if err != nil {
+				return nil, err
+			}
+
+			publicKeyPEM, err := ssh.ParsePublicKey(authorizedKey.Marshal())
+			if err != nil {
+				return nil, err
+			}
+
+			publicKeyPEMs = append(publicKeyPEMs, publicKeyPEM)
 		}
 
 		options = append(options, ssh.PublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
@@ -197,7 +209,13 @@ func (s *Server) Options() ([]ssh.Option, error) {
 				return false
 			}
 
-			isOK := ssh.KeysEqual(key, publicKeyPEM)
+			isOK := false
+			for _, publicKeyPEM := range publicKeyPEMs {
+				if isOK = ssh.KeysEqual(key, publicKeyPEM); isOK {
+					break
+				}
+			}
+
 			if !isOK {
 				logger.Infof("[auth: pubkey][user: %s][remote: %s][version: %s] failed to authenticate.", user, remote, ctx.ClientVersion())
 				return false
@@ -212,6 +230,8 @@ func (s *Server) Options() ([]ssh.Option, error) {
 
 			return true
 		}))
+
+		s.supportAuth = append(s.supportAuth, "publickey")
 	}
 
 	if s.ServerPrivateKey != "" {

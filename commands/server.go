@@ -167,7 +167,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				EnvVars: []string{"AUTHORIZED_KEY"},
 			},
 			&cli.StringFlag{
-				Name:    "authorized-key-path",
+				Name:    "authorized-keys-path",
 				Usage:   "the filepath of authorized key, which is public key",
 				Aliases: []string{},
 				EnvVars: []string{"AUTHORIZED_KEY_PATH"},
@@ -348,16 +348,24 @@ func RegistryServer(app *cli.MultipleProgram) {
 				}
 			}
 
-			authorizedKey := ctx.String("authorized-key")
-			authorizedKeyFilepath := ctx.String("authorized-key-path")
+			authorizedKeys := []string{}
+			if ctx.String("authorized-key") != "" {
+				authorizedKeys = append(authorizedKeys, ctx.String("authorized-key"))
+			}
+			authorizedKeyFilepath := ctx.String("authorized-keys-path")
 			if fs.IsExist(authorizedKeyFilepath) {
-				if authorizedKey == "" {
-					pemBytes, err := ioutil.ReadFile(authorizedKeyFilepath)
-					if err != nil {
-						return fmt.Errorf("failed to read client public key: %v", err)
-					}
-					authorizedKey = string(pemBytes)
+				// if authorizedKey == "" {
+				// 	pemBytes, err := ioutil.ReadFile(authorizedKeyFilepath)
+				// 	if err != nil {
+				// 		return fmt.Errorf("failed to read client public key: %v", err)
+				// 	}
+				// 	authorizedKey = string(pemBytes)
+				// }
+				lines, err := fs.ReadFileLines(authorizedKeyFilepath)
+				if err != nil {
+					return fmt.Errorf("failed to read authorized keys(%s): %v", authorizedKeyFilepath, err)
 				}
+				authorizedKeys = append(authorizedKeys, lines...)
 			}
 
 			//
@@ -398,7 +406,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				//
 				ServerPrivateKey: privateKey,
 				//
-				ClientAuthorizedKey: authorizedKey,
+				ClientAuthorizedKeys: authorizedKeys,
 				//
 				IsPtyDisabled: ctx.Bool("disable-pty"),
 				//
