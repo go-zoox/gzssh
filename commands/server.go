@@ -25,7 +25,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "server port",
 				Aliases: []string{"p"},
 				EnvVars: []string{"PORT"},
-				Value:   22,
+				Value:   8848,
 			},
 			&cli.StringFlag{
 				Name:    "user",
@@ -43,7 +43,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "the log dir for access, auth, and audit",
 				Aliases: []string{},
 				EnvVars: []string{"LOG_DIR"},
-				Value:   "/var/log/gzssh",
+				Value:   "/tmp/log/gzssh",
 			},
 			&cli.StringFlag{
 				Name:    "startup-command",
