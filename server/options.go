@@ -180,7 +180,7 @@ func (s *Server) Options() ([]ssh.Option, error) {
 		}
 	}
 
-	if s.ClientAuthorizedKeys != nil {
+	if s.ClientAuthorizedKeys != nil && len(s.ClientAuthorizedKeys) > 0 {
 		publicKeyPEMs := []ssh.PublicKey{}
 
 		for _, authorizedKeyRaw := range s.ClientAuthorizedKeys {
