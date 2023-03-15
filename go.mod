@@ -6,7 +6,6 @@ require (
 	github.com/creack/pty v1.1.18
 	github.com/docker/docker v20.10.22+incompatible
 	github.com/dustin/go-humanize v1.0.0
-	github.com/gliderlabs/ssh v0.3.5
 	github.com/go-zoox/cli v1.0.10
 	github.com/go-zoox/config v1.2.3
 	github.com/go-zoox/datetime v1.1.1
@@ -15,6 +14,7 @@ require (
 	github.com/go-zoox/ip v1.0.2
 	github.com/go-zoox/logger v1.3.3
 	github.com/go-zoox/lru v1.0.1
+	github.com/go-zoox/ssh v1.0.1
 	github.com/go-zoox/zoox v1.6.8
 	github.com/gorilla/websocket v1.5.0
 	github.com/mdp/qrterminal/v3 v3.0.0
@@ -25,7 +25,6 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.6.0 // indirect
-	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -34,6 +33,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/gliderlabs/ssh v0.3.5 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
 	github.com/go-zoox/chalk v1.0.2 // indirect

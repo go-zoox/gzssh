@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/creack/pty"
-	"github.com/gliderlabs/ssh"
+	"github.com/go-zoox/ssh"
 )
 
 func (s *Server) runInHost(session ssh.Session) (int, int, error) {
@@ -68,7 +68,7 @@ func (s *Server) runInHost(session ssh.Session) (int, int, error) {
 		}
 
 		if len(commands) != 0 {
-			cmd = exec.Command("sh", "-c", strings.Join(commands, " && "))
+			cmd = exec.Command("sh", "-c", strings.Join(commands, "\n"))
 		} else {
 			cmd = exec.Command(s.Shell)
 		}
@@ -155,7 +155,7 @@ func (s *Server) runInHost(session ssh.Session) (int, int, error) {
 			auditor.Write([]byte{'\r'})
 		}
 
-		cmd := exec.Command("sh", "-c", strings.Join(commands, " "))
+		cmd := exec.Command("sh", "-c", strings.Join(commands, "\n"))
 		for k, v := range s.Environment {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
 		}

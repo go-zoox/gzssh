@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/go-zoox/ssh"
 	"github.com/go-zoox/datetime"
 	"github.com/go-zoox/fs"
 	oauthqrcode "github.com/go-zoox/gzssh/utils/oauth-qrcode"

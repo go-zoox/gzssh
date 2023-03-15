@@ -4,8 +4,8 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/gliderlabs/ssh"
 	"github.com/go-zoox/logger"
+	"github.com/go-zoox/ssh"
 	"github.com/pkg/sftp"
 )
 

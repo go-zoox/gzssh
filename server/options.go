@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/go-zoox/ssh"
 	"github.com/go-zoox/fetch"
 	"github.com/go-zoox/gzssh/server/sftp"
 	"github.com/go-zoox/logger"

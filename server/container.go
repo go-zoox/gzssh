@@ -18,9 +18,9 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/dustin/go-humanize"
-	"github.com/gliderlabs/ssh"
 	"github.com/go-zoox/datetime"
 	"github.com/go-zoox/logger"
+	"github.com/go-zoox/ssh"
 )
 
 func (s *Server) runInContainer(session ssh.Session) (int, int, error) {

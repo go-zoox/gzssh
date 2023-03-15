@@ -23,7 +23,7 @@ func init() {
 				defaultPrivateKeyPath = "/etc/ssh/ssh_host_rsa_key"
 			}
 
-			if err := fs.Mkdirp("/var/log/gzssh"); err != nil {
+			if err := fs.Mkdirp("/var/log/gzssh"); err == nil {
 				defaultLogDir = "/var/log/gzssh"
 			}
 		}
