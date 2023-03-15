@@ -14,7 +14,7 @@ require (
 	github.com/go-zoox/ip v1.0.2
 	github.com/go-zoox/logger v1.3.3
 	github.com/go-zoox/lru v1.0.1
-	github.com/go-zoox/ssh v1.0.1
+	github.com/go-zoox/ssh v1.0.2
 	github.com/go-zoox/zoox v1.6.8
 	github.com/gorilla/websocket v1.5.0
 	github.com/mdp/qrterminal/v3 v3.0.0
@@ -33,7 +33,6 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/gliderlabs/ssh v0.3.5 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
 	github.com/go-zoox/chalk v1.0.2 // indirect
