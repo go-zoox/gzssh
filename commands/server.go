@@ -3,12 +3,36 @@ package commands
 import (
 	"fmt"
 	"io/ioutil"
+	"os/user"
 	"runtime"
 
 	"github.com/go-zoox/cli"
 	"github.com/go-zoox/fs"
 	"github.com/go-zoox/gzssh/server"
 )
+
+var defaultPrivateKeyPath = ""
+var defaultAuthroziedKeyPath = ""
+var defaultLogDir = "/tmp/log/gzssh"
+
+func init() {
+	currentUser, err := user.Current()
+	if err == nil {
+		if currentUser.Uid == "0" || currentUser.Gid == "0" {
+			if fs.IsExist("/etc/ssh/ssh_host_rsa_key") {
+				defaultPrivateKeyPath = "/etc/ssh/ssh_host_rsa_key"
+			}
+
+			if err := fs.Mkdirp("/var/log/gzssh"); err != nil {
+				defaultLogDir = "/var/log/gzssh"
+			}
+		}
+	}
+
+	if fs.IsExist(fs.JoinHomeDir(".ssh/authorized_keys")) {
+		defaultAuthroziedKeyPath = fs.JoinHomeDir(".ssh/authorized_keys")
+	}
+}
 
 func RegistryServer(app *cli.MultipleProgram) {
 	app.Register("server", &cli.Command{
@@ -43,7 +67,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "the log dir for access, auth, and audit",
 				Aliases: []string{},
 				EnvVars: []string{"LOG_DIR"},
-				Value:   "/tmp/log/gzssh",
+				Value:   defaultLogDir,
 			},
 			&cli.StringFlag{
 				Name:    "startup-command",
@@ -159,6 +183,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "the filepath of server private key",
 				Aliases: []string{},
 				EnvVars: []string{"PRIVATE_KEY_PATH"},
+				Value:   defaultPrivateKeyPath,
 			},
 			&cli.StringFlag{
 				Name:    "authorized-key",
@@ -171,6 +196,7 @@ func RegistryServer(app *cli.MultipleProgram) {
 				Usage:   "the filepath of authorized key, which is public key",
 				Aliases: []string{},
 				EnvVars: []string{"AUTHORIZED_KEY_PATH"},
+				Value:   defaultAuthroziedKeyPath,
 			},
 			&cli.BoolFlag{
 				Name:    "disable-pty",

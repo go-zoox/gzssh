@@ -1,6 +1,8 @@
 package server
 
-import "github.com/go-zoox/lru"
+import (
+	"github.com/go-zoox/lru"
+)
 
 var LEGAL_CHARS_MAPPING = map[byte]bool{}
 
