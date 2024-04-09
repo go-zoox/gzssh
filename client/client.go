@@ -36,6 +36,8 @@ type Client struct {
 	IsAudit bool
 	//
 	KnowHostsFilePath string
+	//
+	Command string
 }
 
 func (c *Client) Connect() error {
@@ -143,6 +145,10 @@ func (c *Client) Connect() error {
 
 	session.Stdout = os.Stdout
 	session.Stderr = os.Stderr
+
+	if c.Command != "" {
+		return session.Run(c.Command)
+	}
 
 	stdin, err = session.StdinPipe()
 	if err != nil {

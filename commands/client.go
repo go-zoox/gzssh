@@ -18,54 +18,65 @@ func RegistryClient(app *cli.MultipleProgram) {
 			&cli.StringFlag{
 				Name:     "host",
 				Usage:    "server host",
-				EnvVars:  []string{"HOST"},
+				EnvVars:  []string{"SSH_HOST"},
 				Required: true,
 			},
 			&cli.IntFlag{
 				Name:    "port",
 				Usage:   "server port",
 				Aliases: []string{"p"},
-				EnvVars: []string{"PORT"},
+				EnvVars: []string{"SSH_PORT"},
 				Value:   22,
 			},
 			&cli.StringFlag{
-				Name:    "user",
-				Usage:   "server user",
-				Aliases: []string{"u"},
-				// EnvVars: []string{"USER"},
+				Name:     "user",
+				Usage:    "server user",
+				Aliases:  []string{"u"},
+				EnvVars:  []string{"SSH_USER"},
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:    "pass",
 				Usage:   "server pass",
 				Aliases: []string{},
-				EnvVars: []string{"PASS"},
+				EnvVars: []string{"SSH_PASS"},
 			},
 			&cli.StringFlag{
 				Name:    "private-key",
 				Aliases: []string{"i"},
 				Usage:   "server private key file path",
+				EnvVars: []string{"SSH_PRIVATE_KEY"},
 			},
 			&cli.StringFlag{
 				Name:    "private-key-secret",
 				Aliases: []string{},
 				Usage:   "server private key secret",
+				EnvVars: []string{"SSH_PRIVATE_KEY_SECRET"},
 			},
 			&cli.StringFlag{
 				Name:    "known-hosts",
 				Aliases: []string{},
 				Usage:   "the known host file path",
+				EnvVars: []string{"SSH_KNOWN_HOSTS"},
 				Value:   fs.JoinPath(homeDir, ".ssh/known_hosts"),
 			},
 			&cli.BoolFlag{
 				Name:    "ignore-strict-host-key-checking",
 				Aliases: []string{},
 				Usage:   "whether ignore strict host key checking",
+				EnvVars: []string{"SSH_IGNORE_STRICT_HOST_KEY_CHECKING"},
 			},
 			&cli.StringFlag{
 				Name:    "open-in-browser",
 				Aliases: []string{},
 				Usage:   "open terminal in browser, Example: 127.0.0.1:9000",
+				EnvVars: []string{"SSH_OPEN_IN_BROWSER"},
+			},
+			&cli.StringFlag{
+				Name:    "command",
+				Aliases: []string{"c"},
+				Usage:   "command to execute",
+				EnvVars: []string{"SSH_COMMAND"},
 			},
 		},
 		Action: func(ctx *cli.Context) (err error) {
@@ -87,6 +98,7 @@ func RegistryClient(app *cli.MultipleProgram) {
 				KnowHostsFilePath:             ctx.String("known-hosts"),
 				IsIgnoreStrictHostKeyChecking: ctx.Bool("ignore-strict-host-key-checking"),
 				OpenInBrowserAddress:          ctx.String("open-in-browser"),
+				Command:                       ctx.String("command"),
 			}
 
 			return c.Connect()
